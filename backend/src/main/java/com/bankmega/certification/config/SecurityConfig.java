@@ -72,11 +72,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration c = new CorsConfiguration();
-         c.setAllowedOrigins(List.of(
-            "http://localhost:5173",
-            "https://2e9bdf373ecb.ngrok-free.app",   // BE via ngrok
-            "https://mega-certification-frontend.vercel.app" // FE di Vercel
-        ));
+        c.addAllowedOriginPattern("*");
         c.setAllowedMethods(List.of("GET","POST","PUT","DELETE","PATCH","OPTIONS"));
         c.addAllowedHeader("*"); // biar semua header lolos
         c.setExposedHeaders(List.of("Location"));
