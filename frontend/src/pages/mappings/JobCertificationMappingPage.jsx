@@ -3,18 +3,22 @@ import toast from "react-hot-toast";
 import Select from "react-select";
 import Pagination from "../../components/common/Pagination";
 import {
-  fetchEmployeeEligibilityPaged,
-  refreshEmployeeEligibility,
-} from "../../services/employeeEligibilityService";
-import { fetchAllJobPositions } from "../../services/jobPositionService";
+  fetchJobCertificationMappingsPaged,
+  deleteJobCertificationMapping,
+  toggleJobCertificationMapping,
+} from "../../services/jobCertificationMappingService";
 import { fetchCertifications } from "../../services/certificationService";
 import { fetchCertificationLevels } from "../../services/certificationLevelService";
 import { fetchSubFields } from "../../services/subFieldService";
+import { fetchAllJobPositions } from "../../services/jobPositionService";
+import EditJobCertificationMappingModal from "../../components/job-certification-mapping/EditJobCertificationMappingModal";
+import { downloadJobCertTemplate } from "../../services/jobCertificationImportService";
+import ImportJobCertificationMappingModal from "../../components/job-certification-mapping/ImportJobCertificationMappingModal";
 
-export default function EmployeeEligibilityPage() {
+
+export default function JobCertificationMappingPage() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
 
   // 🔹 Pagination
   const [page, setPage] = useState(1);
@@ -32,7 +36,13 @@ export default function EmployeeEligibilityPage() {
   const [filterCert, setFilterCert] = useState([]);
   const [filterLevel, setFilterLevel] = useState([]);
   const [filterSub, setFilterSub] = useState([]);
+  const [filterStatus, setFilterStatus] = useState({ value: "all", label: "Semua" });
   const [search, setSearch] = useState("");
+
+  // 🔹 Modals
+  const [editItem, setEditItem] = useState(null);
+  const [confirm, setConfirm] = useState({ open: false, id: null });
+  const [openImport, setOpenImport] = useState(false);
 
   // 🔹 Load data
   async function load() {
@@ -41,34 +51,22 @@ export default function EmployeeEligibilityPage() {
       const params = {
         page: page - 1,
         size: rowsPerPage,
-        jobIds: filterJob.map((f) => f.value),
-        certIds: filterCert.map((f) => f.value),
-        levelIds: filterLevel.map((f) => f.value),
-        subIds: filterSub.map((f) => f.value),
+        jobIds: filterJob.map(f => f.value),
+        certCodes: filterCert.map(f => f.value),
+        levels: filterLevel.map(f => f.value),
+        subCodes: filterSub.map(f => f.value),
+        status: filterStatus?.value || "all",
         search: search || null,
       };
 
-      const res = await fetchEmployeeEligibilityPaged(params);
+      const res = await fetchJobCertificationMappingsPaged(params);
       setRows(res.content || []);
       setTotalPages(res.totalPages || 1);
       setTotalElements(res.totalElements || 0);
     } catch {
-      toast.error("❌ Gagal memuat eligibility");
+      toast.error("❌ Gagal memuat mapping");
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function onRefresh() {
-    setRefreshing(true);
-    try {
-      await refreshEmployeeEligibility();
-      toast.success("✅ Eligibility berhasil di-refresh");
-      load();
-    } catch {
-      toast.error("❌ Gagal refresh eligibility");
-    } finally {
-      setRefreshing(false);
     }
   }
 
@@ -82,10 +80,10 @@ export default function EmployeeEligibilityPage() {
         fetchSubFields(),
       ]);
 
-      setJobOptions(jobs.map((j) => ({ value: j.id, label: j.name })));
-      setCertOptions(certs.map((c) => ({ value: c.id, label: c.code })));
-      setLevelOptions(levels.map((l) => ({ value: l.id, label: l.level })));
-      setSubOptions(subs.map((s) => ({ value: s.id, label: s.code })));
+      setJobOptions(jobs.map(j => ({ value: j.id, label: j.name })));
+      setCertOptions(certs.map(c => ({ value: c.code, label: c.code })));
+      setLevelOptions(levels.map(l => ({ value: l.level, label: l.name })));
+      setSubOptions(subs.map(s => ({ value: s.code, label: s.code })));
     } catch (err) {
       console.error("❌ loadFilters error:", err);
       toast.error("❌ Gagal memuat filter");
@@ -94,7 +92,7 @@ export default function EmployeeEligibilityPage() {
 
   useEffect(() => {
     load();
-  }, [page, rowsPerPage, filterJob, filterCert, filterLevel, filterSub, search]);
+  }, [page, rowsPerPage, filterJob, filterCert, filterLevel, filterSub, filterStatus, search]);
 
   useEffect(() => {
     loadFilters();
@@ -106,13 +104,14 @@ export default function EmployeeEligibilityPage() {
     <div>
       {/* Toolbar */}
       <div className="mb-4 space-y-3">
-        {/* Row 1: Search + Refresh */}
+        {/* Row 1: Search + Spacer + Actions */}
         <div className="grid grid-cols-1 lg:grid-cols-6 gap-3">
-          <div className="col-span-1 lg:col-span-4">
+          {/* Search */}
+          <div className="col-span-1 lg:col-span-2">
             <input
               type="text"
               className="input input-sm input-bordered w-full"
-              placeholder="🔍 Cari NIP, nama, atau jabatan..."
+              placeholder="🔍 Cari jabatan atau sertifikasi..."
               value={search}
               onChange={(e) => {
                 setPage(1);
@@ -120,19 +119,34 @@ export default function EmployeeEligibilityPage() {
               }}
             />
           </div>
-          <div className="col-span-1 lg:col-span-2">
+
+          {/* Spacer (hidden di mobile) */}
+          <div className="hidden lg:block lg:col-span-2" />
+
+          {/* Download */}
+          <div className="col-span-1">
             <button
-              className={`btn btn-primary btn-sm w-full ${refreshing ? "loading" : ""}`}
-              onClick={onRefresh}
-              disabled={refreshing}
+              className="btn btn-warning btn-sm w-full"
+              onClick={downloadJobCertTemplate}
             >
-              {refreshing ? "Refreshing..." : "Refresh Eligibility"}
+              Download Template
+            </button>
+          </div>
+
+          {/* Import */}
+          <div className="col-span-1">
+            <button
+              className="btn btn-success btn-sm w-full"
+              onClick={() => setOpenImport(true)}
+            >
+              Import Excel
             </button>
           </div>
         </div>
 
         {/* Row 2: Filters */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 text-xs">
+          {/* Filter Jabatan */}
           <Select
             isMulti
             options={jobOptions}
@@ -140,6 +154,8 @@ export default function EmployeeEligibilityPage() {
             onChange={setFilterJob}
             placeholder="Filter Jabatan"
           />
+
+          {/* Filter Sertifikasi */}
           <Select
             isMulti
             options={certOptions}
@@ -147,6 +163,8 @@ export default function EmployeeEligibilityPage() {
             onChange={setFilterCert}
             placeholder="Filter Sertifikasi"
           />
+
+          {/* Filter Level */}
           <Select
             isMulti
             options={levelOptions}
@@ -154,6 +172,8 @@ export default function EmployeeEligibilityPage() {
             onChange={setFilterLevel}
             placeholder="Filter Level"
           />
+
+          {/* Filter Sub Bidang */}
           <Select
             isMulti
             options={subOptions}
@@ -161,24 +181,38 @@ export default function EmployeeEligibilityPage() {
             onChange={setFilterSub}
             placeholder="Filter Sub Bidang"
           />
-          <div className="lg:col-span-2">
-            <button
-              className="btn btn-accent btn-soft border-accent btn-sm w-full"
-              onClick={() => {
-                setFilterJob([]);
-                setFilterCert([]);
-                setFilterLevel([]);
-                setFilterSub([]);
-                setSearch("");
-                setPage(1);
-                toast.success("Filter berhasil direset");
-              }}
-            >
-              Reset Filter
-            </button>
-          </div>
+
+          {/* Filter Status */}
+          <Select
+            options={[
+              { value: "all", label: "Semua" },
+              { value: "active", label: "Aktif" },
+              { value: "inactive", label: "Nonaktif" },
+            ]}
+            value={filterStatus}
+            onChange={setFilterStatus}
+            placeholder="Status"
+          />
+
+          {/* Reset Button */}
+          <button
+            className="btn btn-accent btn-soft border-accent btn-sm w-full"
+            onClick={() => {
+              setFilterJob([]);
+              setFilterCert([]);
+              setFilterLevel([]);
+              setFilterSub([]);
+              setFilterStatus({ value: "all", label: "Semua" });
+              setSearch("");
+              setPage(1);
+              toast.success("Filter berhasil direset");
+            }}
+          >
+            Reset Filter
+          </button>
         </div>
       </div>
+
 
       {/* Table */}
       <div className="overflow-x-auto rounded-xl border border-gray-200 shadow bg-base-100">
@@ -186,24 +220,25 @@ export default function EmployeeEligibilityPage() {
           <thead className="bg-base-200 text-xs">
             <tr>
               <th>No</th>
-              <th>NIP</th>
-              <th>Nama Pegawai</th>
               <th>Jabatan</th>
-              <th>Kode Sertifikasi</th>
+              <th>Sertifikasi</th>
               <th>Jenjang</th>
-              <th>Kode Sub Bidang</th>
+              <th>Sub Bidang</th>
+              <th>Status</th>
+              <th>Updated At</th>
+              <th>Aksi</th>
             </tr>
           </thead>
           <tbody className="text-xs">
             {loading ? (
               <tr>
-                <td colSpan={7} className="text-center py-10">
+                <td colSpan={8} className="text-center py-10">
                   <span className="loading loading-dots loading-md" />
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center text-gray-400 py-10">
+                <td colSpan={8} className="text-center text-gray-400 py-10">
                   Tidak ada data
                 </td>
               </tr>
@@ -211,12 +246,50 @@ export default function EmployeeEligibilityPage() {
               rows.map((r, idx) => (
                 <tr key={r.id}>
                   <td>{startIdx + idx}</td>
-                  <td>{r.nip}</td>
-                  <td>{r.employeeName}</td>
-                  <td>{r.jobPositionTitle}</td>
+                  <td>{r.jobName}</td>
                   <td>{r.certificationCode}</td>
-                  <td>{r.certificationLevel || "-"}</td>
+                  <td>{r.certificationLevelLevel || "-"}</td>
                   <td>{r.subFieldCode || "-"}</td>
+                  <td>
+                    {r.isActive ? (
+                      <span className="badge badge-success border-success badge-sm">Aktif</span>
+                    ) : (
+                      <span className="badge badge-warning border-warning badge-sm">Nonaktif</span>
+                    )}
+                  </td>
+                  <td>
+                    {r.updatedAt
+                      ? new Date(r.updatedAt).toLocaleDateString("id-ID", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "-"}
+                  </td>
+                  <td className="space-x-1">
+                    <button
+                      className={`btn btn-xs ${
+                        r.isActive ? "btn-warning border-warning btn-soft" : "btn-success border-success btn-soft"
+                      }`}
+                      onClick={() => toggleJobCertificationMapping(r.id).then(load)}
+                    >
+                      {r.isActive ? "Nonaktifkan" : "Aktifkan"}
+                    </button>
+                    <button
+                      className="btn btn-xs border-warning btn-soft btn-warning"
+                      onClick={() => setEditItem(r)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="btn btn-xs border-error btn-soft btn-error"
+                      onClick={() => setConfirm({ open: true, id: r.id })}
+                    >
+                      Delete
+                    </button>
+                  </td>
                 </tr>
               ))
             )}
@@ -236,6 +309,52 @@ export default function EmployeeEligibilityPage() {
           setPage(1);
         }}
       />
+
+      <EditJobCertificationMappingModal
+        open={!!editItem}
+        initial={editItem}
+        onClose={() => setEditItem(null)}
+        onSaved={() => {
+          setEditItem(null);
+          load();
+        }}
+      />
+
+      <ImportJobCertificationMappingModal
+        open={openImport}
+        onClose={() => setOpenImport(false)}
+        onImported={load}
+      />
+
+      {/* Confirm Delete */}
+      <dialog className="modal" open={confirm.open}>
+        <div className="modal-box">
+          <h3 className="font-bold text-lg">Hapus Mapping?</h3>
+          <p className="py-2">Mapping ini akan dinonaktifkan dari sistem.</p>
+          <div className="modal-action">
+            <button className="btn" onClick={() => setConfirm({ open: false, id: null })}>
+              Batal
+            </button>
+            <button
+              className="btn btn-error"
+              onClick={() => {
+                deleteJobCertificationMapping(confirm.id)
+                  .then(() => {
+                    toast.success("✅ Mapping dihapus");
+                    load();
+                  })
+                  .catch(() => toast.error("❌ Gagal menghapus mapping"))
+                  .finally(() => setConfirm({ open: false, id: null }));
+              }}
+            >
+              Hapus
+            </button>
+          </div>
+        </div>
+        <form method="dialog" className="modal-backdrop">
+          <button>close</button>
+        </form>
+      </dialog>
     </div>
   );
 }
