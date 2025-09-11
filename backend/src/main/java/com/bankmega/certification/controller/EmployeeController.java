@@ -5,6 +5,7 @@ import com.bankmega.certification.dto.EmployeeResponse;
 import com.bankmega.certification.service.EmployeeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,35 +18,40 @@ public class EmployeeController {
 
     private final EmployeeService service;
 
-    // ✅ Search + Paging + Filter multi
-    @GetMapping
-    public Page<EmployeeResponse> search(
+    // 🔹 Ambil data pegawai dengan paging + filter (konsisten dgn Eligibility)
+    @GetMapping("/paged")
+    public ResponseEntity<Page<EmployeeResponse>> getPaged(
             @RequestParam(required = false) String q,
             @RequestParam(required = false) List<Long> regionalIds,
             @RequestParam(required = false) List<Long> divisionIds,
             @RequestParam(required = false) List<Long> unitIds,
             @RequestParam(required = false) List<Long> jobPositionIds,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            Pageable pageable
     ) {
-        return service.search(q, regionalIds, divisionIds, unitIds, jobPositionIds, page, size);
+        return ResponseEntity.ok(
+                service.search(q, regionalIds, divisionIds, unitIds, jobPositionIds, pageable)
+        );
     }
 
+    // 🔹 Get detail by ID
     @GetMapping("/{id}")
     public ResponseEntity<EmployeeResponse> getById(@PathVariable Long id) {
         return ResponseEntity.ok(service.getById(id));
     }
 
+    // 🔹 Create
     @PostMapping
     public ResponseEntity<EmployeeResponse> create(@RequestBody EmployeeRequest req) {
         return ResponseEntity.ok(service.create(req));
     }
 
+    // 🔹 Update
     @PutMapping("/{id}")
     public ResponseEntity<EmployeeResponse> update(@PathVariable Long id, @RequestBody EmployeeRequest req) {
         return ResponseEntity.ok(service.update(id, req));
     }
 
+    // 🔹 Soft delete
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> softDelete(@PathVariable Long id) {
         service.softDelete(id);

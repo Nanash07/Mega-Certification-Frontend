@@ -85,9 +85,9 @@ export default function EmployeeEligibilityPage() {
       ]);
 
       setJobOptions(jobs.map((j) => ({ value: j.id, label: j.name })));
-      setCertOptions(certs.map((c) => ({ value: c.code, label: `${c.code} - ${c.name}` })));
-      setLevelOptions(levels.map((l) => ({ value: l.level, label: `${l.level} - ${l.name}` })));
-      setSubOptions(subs.map((s) => ({ value: s.code, label: `${s.code} - ${s.name}` })));
+      setCertOptions(certs.map((c) => ({ value: c.code, label: c.code })));
+      setLevelOptions(levels.map((l) => ({ value: l.level, label: l.level })));
+      setSubOptions(subs.map((s) => ({ value: s.code, label: s.code })));
     } catch (err) {
       console.error("❌ loadFilters error:", err);
       toast.error("❌ Gagal memuat filter");
@@ -166,8 +166,8 @@ export default function EmployeeEligibilityPage() {
           <Select
             isMulti
             options={[
-              { value: "NOT_YET_CERTIFIED", label: "Belum Tersertifikasi" },
-              { value: "ACTIVE", label: "Aktif" },
+              { value: "BELUM_SERTIFIKASI", label: "Belum Sertifikasi" },
+              { value: "AKTIF", label: "Aktif" },
               { value: "DUE", label: "Mau Habis" },
               { value: "EXPIRED", label: "Expired" },
             ]}

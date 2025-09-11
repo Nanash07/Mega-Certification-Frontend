@@ -25,32 +25,35 @@ public class EmployeeService {
     private final UnitRepository unitRepo;
     private final JobPositionRepository jobPositionRepo;
 
-    // ✅ Search + Filter multi + Paging
+    // ✅ Search + Filter multi + Paging (pakai Specification chaining)
     public Page<EmployeeResponse> search(
             String q,
             List<Long> regionalIds,
             List<Long> divisionIds,
             List<Long> unitIds,
             List<Long> jobPositionIds,
-            int page,
-            int size
+            Pageable pageable
     ) {
-        Pageable pageable = PageRequest.of(page, size);
-
         Specification<Employee> spec = EmployeeSpecification.notDeleted()
-                .and(EmployeeSpecification.search(q));
+                .and(EmployeeSpecification.search(q))
+                .and(EmployeeSpecification.byRegionalIds(regionalIds))
+                .and(EmployeeSpecification.byDivisionIds(divisionIds))
+                .and(EmployeeSpecification.byUnitIds(unitIds))
+                .and(EmployeeSpecification.byJobPositionIds(jobPositionIds));
 
-        if (regionalIds != null && !regionalIds.isEmpty()) {
-            spec = spec.and((root, query, cb) -> root.get("regional").get("id").in(regionalIds));
-        }
-        if (divisionIds != null && !divisionIds.isEmpty()) {
-            spec = spec.and((root, query, cb) -> root.get("division").get("id").in(divisionIds));
-        }
-        if (unitIds != null && !unitIds.isEmpty()) {
-            spec = spec.and((root, query, cb) -> root.get("unit").get("id").in(unitIds));
-        }
-        if (jobPositionIds != null && !jobPositionIds.isEmpty()) {
-            spec = spec.and((root, query, cb) -> root.get("jobPosition").get("id").in(jobPositionIds));
+        // 🚀 Default sort kalau FE nggak kirim sort
+        if (pageable.getSort().isUnsorted()) {
+            pageable = PageRequest.of(
+                    pageable.getPageNumber(),
+                    pageable.getPageSize(),
+                    Sort.by(
+                            Sort.Order.asc("regional.name"),
+                            Sort.Order.asc("division.name"),
+                            Sort.Order.asc("unit.name"),
+                            Sort.Order.asc("jobPosition.name"),
+                            Sort.Order.asc("name")
+                    )
+            );
         }
 
         return repo.findAll(spec, pageable).map(this::toResponse);
