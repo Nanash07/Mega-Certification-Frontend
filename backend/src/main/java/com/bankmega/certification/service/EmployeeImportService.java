@@ -1,5 +1,7 @@
 package com.bankmega.certification.service;
 
+import com.bankmega.certification.dto.EmployeeImportLogResponse;
+import com.bankmega.certification.dto.EmployeeImportResponse;
 import com.bankmega.certification.entity.*;
 import com.bankmega.certification.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -9,14 +11,13 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -28,124 +29,213 @@ public class EmployeeImportService {
     private final JobPositionRepository jobPositionRepo;
     private final EmployeeRepository employeeRepo;
     private final EmployeeHistoryRepository historyRepo;
+    private final EmployeeImportLogRepository logRepo;
 
-    // ================== IMPORT ==================
-    public List<Employee> importExcel(MultipartFile file) throws Exception {
-        List<Employee> result = new ArrayList<>();
+    // ===================== DRYRUN & CONFIRM =====================
+    public EmployeeImportResponse dryRun(MultipartFile file, User user) throws Exception {
+        return process(file, true, user);
+    }
 
-        try (InputStream is = file.getInputStream()) {
-            Workbook workbook = WorkbookFactory.create(is);
+    @Transactional
+    public EmployeeImportResponse confirm(MultipartFile file, User user) throws Exception {
+        EmployeeImportResponse response = process(file, false, user);
+        response.setMessage("Import pegawai berhasil ✅. Jangan lupa refresh eligibility.");
+        return response;
+    }
+
+    // ===================== LOG =====================
+    public List<EmployeeImportLogResponse> getAllLogs() {
+        return logRepo.findAll().stream().map(this::toResponse).toList();
+    }
+
+    public List<EmployeeImportLogResponse> getLogsByUser(Long userId) {
+        return logRepo.findByUserIdOrderByCreatedAtDesc(userId).stream().map(this::toResponse).toList();
+    }
+
+    private EmployeeImportLogResponse toResponse(EmployeeImportLog log) {
+        return EmployeeImportLogResponse.builder()
+                .id(log.getId())
+                .username(log.getUser().getUsername())
+                .fileName(log.getFileName())
+                .totalProcessed(log.getTotalProcessed())
+                .totalCreated(log.getTotalCreated())
+                .totalUpdated(log.getTotalUpdated())
+                .totalMutated(log.getTotalMutated())
+                .totalResigned(log.getTotalResigned())
+                .totalErrors(log.getTotalErrors())
+                .dryRun(log.isDryRun())
+                .createdAt(log.getCreatedAt())
+                .build();
+    }
+
+    // ===================== CORE IMPORT =====================
+    private EmployeeImportResponse process(MultipartFile file, boolean dryRun, User user) throws Exception {
+        int processed = 0, created = 0, updated = 0, mutated = 0, resigned = 0, errors = 0;
+        List<String> errorDetails = new ArrayList<>();
+
+        // Ambil semua NIP existing (buat deteksi resign)
+        Set<String> existingNips = new HashSet<>(employeeRepo.findAll().stream()
+                .map(Employee::getNip).toList());
+
+        Set<String> importedNips = new HashSet<>();
+
+        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
             Sheet sheet = workbook.getSheetAt(0);
 
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
+                processed++;
 
                 try {
-                    String regionalName   = getCellValue(row.getCell(0));
-                    String divisionName   = getCellValue(row.getCell(1));
-                    String unitName       = getCellValue(row.getCell(2));
-                    String jobName       = getCellValue(row.getCell(3));
-                    String nip            = getCellValue(row.getCell(4));
-                    String name           = getCellValue(row.getCell(5));
-                    String gender         = getCellValue(row.getCell(6));
-                    String email          = getCellValue(row.getCell(7));
+                    String regionalName = getCellValue(row.getCell(0));
+                    String divisionName = getCellValue(row.getCell(1));
+                    String unitName = getCellValue(row.getCell(2));
+                    String jobName = getCellValue(row.getCell(3));
+                    String nip = getCellValue(row.getCell(4));
+                    String name = getCellValue(row.getCell(5));
+                    String gender = getCellValue(row.getCell(6));
+                    String email = getCellValue(row.getCell(7));
                     String skEffectiveStr = getCellValue(row.getCell(8));
 
                     if (nip == null || nip.isBlank()) continue;
+                    importedNips.add(nip);
 
                     LocalDate skEffective = parseDateSafe(row.getCell(8), skEffectiveStr);
 
-                    // 🔹 Auto-create master data (flat structure)
-                    Regional regional = (regionalName == null || regionalName.isBlank()) ? null :
-                            regionalRepo.findByNameIgnoreCase(regionalName)
-                                    .orElseGet(() -> regionalRepo.save(Regional.builder().name(regionalName).build()));
-
-                    Division division = (divisionName == null || divisionName.isBlank()) ? null :
-                            divisionRepo.findByNameIgnoreCase(divisionName)
-                                    .orElseGet(() -> divisionRepo.save(Division.builder().name(divisionName).build()));
-
-                    Unit unit = (unitName == null || unitName.isBlank()) ? null :
-                            unitRepo.findByNameIgnoreCase(unitName)
-                                    .orElseGet(() -> unitRepo.save(Unit.builder().name(unitName).build()));
-
-                    JobPosition jobPos = (jobName == null || jobName.isBlank()) ? null :
-                            jobPositionRepo.findByNameIgnoreCase(jobName)
-                                    .orElseGet(() -> jobPositionRepo.save(JobPosition.builder().name(jobName).build()));
+                    // 🔹 Auto-create master data
+                    Regional regional = resolveRegional(regionalName, dryRun);
+                    Division division = resolveDivision(divisionName, dryRun);
+                    Unit unit = resolveUnit(unitName, dryRun);
+                    JobPosition jobPos = resolveJob(jobName, dryRun);
 
                     if (jobPos == null) continue;
 
-                    // 🔹 Employee (upsert by NIP)
-                    Employee emp = employeeRepo.findByNip(nip)
-                            .orElse(Employee.builder().nip(nip).build());
-                    emp.setDeletedAt(null);
+                    Employee emp = employeeRepo.findByNip(nip).orElse(null);
 
-                    boolean isNew = emp.getId() == null;
-                    boolean isMutasi = !isNew && emp.getJobPosition() != null &&
-                            !emp.getJobPosition().getId().equals(jobPos.getId());
+                    if (emp == null) {
+                        created++;
+                        if (!dryRun) {
+                            emp = Employee.builder()
+                                    .nip(nip)
+                                    .name(name)
+                                    .gender(gender)
+                                    .email(email)
+                                    .regional(regional)
+                                    .division(division)
+                                    .unit(unit)
+                                    .jobPosition(jobPos)
+                                    .status("ACTIVE")
+                                    .joinDate(skEffective)
+                                    .build();
+                            employeeRepo.save(emp);
 
-                    boolean dataChanged = !isNew && (
-                            !safeEquals(emp.getName(), name) ||
-                            !safeEquals(emp.getEmail(), email) ||
-                            !safeEquals(emp.getGender(), gender) ||
-                            !safeEquals(emp.getRegional(), regional) ||
-                            !safeEquals(emp.getDivision(), division) ||
-                            !safeEquals(emp.getUnit(), unit)
-                    );
+                            historyRepo.save(EmployeeHistory.builder()
+                                    .employee(emp)
+                                    .newJobPosition(jobPos)
+                                    .effectiveDate(skEffective)
+                                    .actionType("CREATED")
+                                    .build());
+                        }
+                    } else {
+                        boolean isMutasi = emp.getJobPosition() != null &&
+                                !emp.getJobPosition().getId().equals(jobPos.getId());
 
-                    JobPosition oldJob = emp.getJobPosition();
+                        boolean dataChanged = !Objects.equals(emp.getName(), name) ||
+                                !Objects.equals(emp.getEmail(), email) ||
+                                !Objects.equals(emp.getGender(), gender);
 
-                    // 🔹 Update data pegawai
-                    emp.setName(name);
-                    emp.setGender(gender);
-                    emp.setEmail(email);
-                    emp.setRegional(regional);
-                    emp.setDivision(division);
-                    emp.setUnit(unit);
-                    emp.setJobPosition(jobPos);
-                    emp.setStatus("ACTIVE");
-                    if (skEffective != null) {
-                        emp.setJoinDate(skEffective); // selalu update joinDate
+                        if (isMutasi) {
+                            mutated++;
+                            if (!dryRun) {
+                                JobPosition oldJob = emp.getJobPosition();
+                                emp.setJobPosition(jobPos);
+                                employeeRepo.save(emp);
+
+                                historyRepo.save(EmployeeHistory.builder()
+                                        .employee(emp)
+                                        .oldJobPosition(oldJob)
+                                        .newJobPosition(jobPos)
+                                        .effectiveDate(skEffective)
+                                        .actionType("MUTASI")
+                                        .build());
+                            }
+                        } else if (dataChanged) {
+                            updated++;
+                            if (!dryRun) {
+                                emp.setName(name);
+                                emp.setEmail(email);
+                                emp.setGender(gender);
+                                employeeRepo.save(emp);
+
+                                historyRepo.save(EmployeeHistory.builder()
+                                        .employee(emp)
+                                        .newJobPosition(jobPos)
+                                        .effectiveDate(skEffective)
+                                        .actionType("UPDATED")
+                                        .build());
+                            }
+                        }
                     }
 
-                    Employee saved = employeeRepo.save(emp);
-                    result.add(saved);
-
-                    // 🔹 Save history
-                    if (isNew) {
-                        historyRepo.save(EmployeeHistory.builder()
-                                .employee(saved)
-                                .newJobPosition(jobPos)
-                                .effectiveDate(skEffective)
-                                .actionType("CREATED")
-                                .build());
-                    } else if (isMutasi) {
-                        historyRepo.save(EmployeeHistory.builder()
-                                .employee(saved)
-                                .oldJobPosition(oldJob)
-                                .newJobPosition(jobPos)
-                                .effectiveDate(skEffective)
-                                .actionType("MUTASI")
-                                .build());
-                    } else if (dataChanged) {
-                        historyRepo.save(EmployeeHistory.builder()
-                                .employee(saved)
-                                .newJobPosition(jobPos)
-                                .effectiveDate(skEffective)
-                                .actionType("UPDATED")
-                                .build());
-                    }
-
-                } catch (Exception exRow) {
-                    System.out.println("⚠️ Error di row " + i + ": " + exRow.getMessage());
-                    exRow.printStackTrace();
+                } catch (Exception e) {
+                    errors++;
+                    errorDetails.add("Row " + i + ": " + e.getMessage());
                 }
             }
         }
-        return result;
+        // 🔹 Deteksi Resign
+        Set<String> resignedNips = new HashSet<>(existingNips);
+        resignedNips.removeAll(importedNips);
+
+        resigned = resignedNips.size();
+        if (!dryRun) {
+            for (String nip : resignedNips) {
+                employeeRepo.findByNip(nip).ifPresent(emp -> {
+                    emp.setStatus("RESIGN");
+                    employeeRepo.save(emp);
+
+                    historyRepo.save(EmployeeHistory.builder()
+                            .employee(emp)
+                            .oldJobPosition(emp.getJobPosition())
+                            .actionType("RESIGN")
+                            .build());
+                });
+            }
+        }
+
+        // 🔹 Save Log kalau confirm
+        if (!dryRun) {
+            logRepo.save(EmployeeImportLog.builder()
+                    .user(user)
+                    .fileName(file.getOriginalFilename())
+                    .totalProcessed(processed)
+                    .totalCreated(created)
+                    .totalUpdated(updated)
+                    .totalMutated(mutated)
+                    .totalResigned(resigned)
+                    .totalErrors(errors)
+                    .dryRun(false)
+                    .build());
+        }
+
+        return EmployeeImportResponse.builder()
+                .fileName(file.getOriginalFilename())
+                .dryRun(dryRun)
+                .processed(processed)
+                .created(created)
+                .updated(updated)
+                .mutated(mutated)
+                .resigned(resigned)
+                .errors(errors)
+                .errorDetails(errorDetails)
+                .message(dryRun
+                        ? "Dry run selesai ✅. Pegawai baru: " + created + ", resign: " + resigned
+                        : "Import selesai ✅. Pegawai baru: " + created + ", resign: " + resigned)
+                .build();
     }
 
-    // ================== TEMPLATE ==================
+    // ===================== TEMPLATE =====================
     public ResponseEntity<byte[]> downloadTemplate() {
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Employees");
@@ -174,7 +264,7 @@ public class EmployeeImportService {
         }
     }
 
-    // ================== UTIL ==================
+    // ===================== UTIL =====================
     private String getCellValue(Cell cell) {
         if (cell == null) return null;
         DataFormatter formatter = new DataFormatter();
@@ -189,18 +279,36 @@ public class EmployeeImportService {
             if (value == null || value.isBlank()) return null;
             if (value.matches("\\d{4}-\\d{2}-\\d{2}")) {
                 return LocalDate.parse(value, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-            } else if (value.matches("\\d{2}/\\d{2}/\\d{4}")) {
-                return LocalDate.parse(value, DateTimeFormatter.ofPattern("dd/MM/yyyy"));
             }
-        } catch (Exception e) {
-            System.out.println("⚠️ Gagal parse tanggal: " + value);
-        }
+        } catch (Exception ignored) {}
         return null;
     }
 
-    private boolean safeEquals(Object a, Object b) {
-        if (a == null && b == null) return true;
-        if (a == null || b == null) return false;
-        return a.equals(b);
+    private Regional resolveRegional(String name, boolean dryRun) {
+        if (name == null || name.isBlank()) return null;
+        return regionalRepo.findByNameIgnoreCase(name).orElseGet(() ->
+                dryRun ? Regional.builder().id(-1L).name(name).build()
+                       : regionalRepo.save(Regional.builder().name(name).build()));
+    }
+
+    private Division resolveDivision(String name, boolean dryRun) {
+        if (name == null || name.isBlank()) return null;
+        return divisionRepo.findByNameIgnoreCase(name).orElseGet(() ->
+                dryRun ? Division.builder().id(-1L).name(name).build()
+                       : divisionRepo.save(Division.builder().name(name).build()));
+    }
+
+    private Unit resolveUnit(String name, boolean dryRun) {
+        if (name == null || name.isBlank()) return null;
+        return unitRepo.findByNameIgnoreCase(name).orElseGet(() ->
+                dryRun ? Unit.builder().id(-1L).name(name).build()
+                       : unitRepo.save(Unit.builder().name(name).build()));
+    }
+
+    private JobPosition resolveJob(String name, boolean dryRun) {
+        if (name == null || name.isBlank()) return null;
+        return jobPositionRepo.findByNameIgnoreCase(name).orElseGet(() ->
+                dryRun ? JobPosition.builder().id(-1L).name(name).build()
+                       : jobPositionRepo.save(JobPosition.builder().name(name).build()));
     }
 }
