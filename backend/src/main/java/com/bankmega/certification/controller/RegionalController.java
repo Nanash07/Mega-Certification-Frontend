@@ -1,11 +1,14 @@
 package com.bankmega.certification.controller;
 
-import com.bankmega.certification.dto.OrgResponse;
+import com.bankmega.certification.dto.RegionalRequest;
+import com.bankmega.certification.dto.RegionalResponse;
 import com.bankmega.certification.service.RegionalService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/regionals")
@@ -14,9 +17,15 @@ public class RegionalController {
 
     private final RegionalService service;
 
+    // ✅ Ambil semua (dropdown)
+    @GetMapping("/all")
+    public ResponseEntity<List<RegionalResponse>> getAll() {
+        return ResponseEntity.ok(service.getAll());
+    }
+
     // ✅ Search + Pagination
     @GetMapping
-    public ResponseEntity<Page<OrgResponse>> search(
+    public ResponseEntity<Page<RegionalResponse>> search(
             @RequestParam(required = false) String q,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
@@ -24,15 +33,21 @@ public class RegionalController {
         return ResponseEntity.ok(service.search(q, page, size));
     }
 
-    // ✅ Create
+    // ✅ Get detail by ID
+    @GetMapping("/{id}")
+    public ResponseEntity<RegionalResponse> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(service.getById(id));
+    }
+
+    // ✅ Create baru
     @PostMapping
-    public ResponseEntity<OrgResponse> create(@RequestParam String name) {
-        return ResponseEntity.ok(service.createOrGet(name));
+    public ResponseEntity<RegionalResponse> create(@RequestBody RegionalRequest req) {
+        return ResponseEntity.ok(service.createOrGet(req));
     }
 
     // ✅ Toggle aktif/nonaktif
     @PutMapping("/{id}/toggle")
-    public ResponseEntity<OrgResponse> toggle(@PathVariable Long id) {
+    public ResponseEntity<RegionalResponse> toggle(@PathVariable Long id) {
         return ResponseEntity.ok(service.toggle(id));
     }
 }

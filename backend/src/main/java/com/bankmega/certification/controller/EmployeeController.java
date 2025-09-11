@@ -18,10 +18,10 @@ public class EmployeeController {
 
     private final EmployeeService service;
 
-    // 🔹 Ambil data pegawai dengan paging + filter (konsisten dgn Eligibility)
+    // 🔹 Paging + Filter
     @GetMapping("/paged")
     public ResponseEntity<Page<EmployeeResponse>> getPaged(
-            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String search,
             @RequestParam(required = false) List<Long> regionalIds,
             @RequestParam(required = false) List<Long> divisionIds,
             @RequestParam(required = false) List<Long> unitIds,
@@ -29,11 +29,11 @@ public class EmployeeController {
             Pageable pageable
     ) {
         return ResponseEntity.ok(
-                service.search(q, regionalIds, divisionIds, unitIds, jobPositionIds, pageable)
+                service.search(search, regionalIds, divisionIds, unitIds, jobPositionIds, pageable)
         );
     }
 
-    // 🔹 Get detail by ID
+    // 🔹 Detail
     @GetMapping("/{id}")
     public ResponseEntity<EmployeeResponse> getById(@PathVariable Long id) {
         return ResponseEntity.ok(service.getById(id));

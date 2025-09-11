@@ -25,9 +25,9 @@ public class EmployeeService {
     private final UnitRepository unitRepo;
     private final JobPositionRepository jobPositionRepo;
 
-    // ✅ Search + Filter multi + Paging (pakai Specification chaining)
+    // 🔹 Paging + Filter + Search
     public Page<EmployeeResponse> search(
-            String q,
+            String search,
             List<Long> regionalIds,
             List<Long> divisionIds,
             List<Long> unitIds,
@@ -35,13 +35,12 @@ public class EmployeeService {
             Pageable pageable
     ) {
         Specification<Employee> spec = EmployeeSpecification.notDeleted()
-                .and(EmployeeSpecification.search(q))
+                .and(EmployeeSpecification.bySearch(search))
                 .and(EmployeeSpecification.byRegionalIds(regionalIds))
                 .and(EmployeeSpecification.byDivisionIds(divisionIds))
                 .and(EmployeeSpecification.byUnitIds(unitIds))
                 .and(EmployeeSpecification.byJobPositionIds(jobPositionIds));
 
-        // 🚀 Default sort kalau FE nggak kirim sort
         if (pageable.getSort().isUnsorted()) {
             pageable = PageRequest.of(
                     pageable.getPageNumber(),
@@ -69,7 +68,6 @@ public class EmployeeService {
         if (repo.existsByNipAndDeletedAtIsNull(req.getNip())) {
             throw new ConflictException("NIP " + req.getNip() + " is already used");
         }
-
         Employee emp = mapRequestToEntity(new Employee(), req);
         return toResponse(repo.save(emp));
     }

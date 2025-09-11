@@ -5,7 +5,6 @@ import com.bankmega.certification.entity.Employee;
 import com.bankmega.certification.entity.JobPosition;
 import com.bankmega.certification.entity.Regional;
 import com.bankmega.certification.entity.Unit;
-
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
@@ -19,7 +18,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSp
     boolean existsByNipAndDeletedAtIsNull(String nip);
     Optional<Employee> findByNipAndDeletedAtIsNull(String nip);
 
-    // reactivate employee kalau ada soft delete
+    // reactivate kalau soft delete
     Optional<Employee> findByNip(String nip);
 
     boolean existsByRegional(Regional regional);

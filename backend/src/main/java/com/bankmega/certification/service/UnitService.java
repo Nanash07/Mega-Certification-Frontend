@@ -1,6 +1,7 @@
 package com.bankmega.certification.service;
 
-import com.bankmega.certification.dto.OrgResponse;
+import com.bankmega.certification.dto.UnitRequest;
+import com.bankmega.certification.dto.UnitResponse;
 import com.bankmega.certification.entity.Unit;
 import com.bankmega.certification.exception.ConflictException;
 import com.bankmega.certification.exception.NotFoundException;
@@ -11,6 +12,7 @@ import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -20,42 +22,43 @@ public class UnitService {
     private final UnitRepository repo;
     private final EmployeeRepository employeeRepo;
 
-    // ✅ Get all tanpa paging (dropdown dsb)
-    public List<OrgResponse> getAll() {
+    public List<UnitResponse> getAll() {
         return repo.findAllByOrderByIsActiveDescNameAsc().stream()
                 .map(this::mapToResponse)
                 .toList();
     }
 
-    // ✅ Create baru atau ambil existing
-    @Transactional
-    public OrgResponse createOrGet(String name) {
-        Unit u = repo.findByNameIgnoreCase(name)
-                .orElseGet(() -> repo.save(Unit.builder()
-                        .name(name)
-                        .isActive(true)
-                        .build()));
-        return mapToResponse(u);
-    }
-
-    // ✅ Search + Pagination
-    public Page<OrgResponse> search(String q, int page, int size) {
+    public Page<UnitResponse> search(String q, int page, int size) {
         Pageable pageable = PageRequest.of(page, size,
                 Sort.by("isActive").descending().and(Sort.by("name").ascending()));
 
-        Page<Unit> result;
-        if (q == null || q.isBlank()) {
-            result = repo.findAll(pageable);
-        } else {
-            result = repo.findByNameContainingIgnoreCase(q, pageable);
-        }
+        Page<Unit> result = (q == null || q.isBlank())
+                ? repo.findAll(pageable)
+                : repo.findByNameContainingIgnoreCase(q, pageable);
 
         return result.map(this::mapToResponse);
     }
 
-    // ✅ Toggle aktif/nonaktif
+    public UnitResponse getById(Long id) {
+        Unit u = repo.findById(id)
+                .orElseThrow(() -> new NotFoundException("Unit not found: " + id));
+        return mapToResponse(u);
+    }
+
     @Transactional
-    public OrgResponse toggle(Long id) {
+    public UnitResponse createOrGet(UnitRequest req) {
+        Unit u = repo.findByNameIgnoreCase(req.getName())
+                .orElseGet(() -> repo.save(Unit.builder()
+                        .name(req.getName())
+                        .isActive(true)
+                        .createdAt(Instant.now())
+                        .updatedAt(Instant.now())
+                        .build()));
+        return mapToResponse(u);
+    }
+
+    @Transactional
+    public UnitResponse toggle(Long id) {
         Unit u = repo.findById(id)
                 .orElseThrow(() -> new NotFoundException("Unit not found: " + id));
 
@@ -67,11 +70,12 @@ public class UnitService {
         }
 
         u.setIsActive(!u.getIsActive());
+        u.setUpdatedAt(Instant.now());
         return mapToResponse(repo.save(u));
     }
 
-    private OrgResponse mapToResponse(Unit u) {
-        return OrgResponse.builder()
+    private UnitResponse mapToResponse(Unit u) {
+        return UnitResponse.builder()
                 .id(u.getId())
                 .name(u.getName())
                 .isActive(u.getIsActive())

@@ -1,6 +1,7 @@
 package com.bankmega.certification.service;
 
-import com.bankmega.certification.dto.OrgResponse;
+import com.bankmega.certification.dto.DivisionRequest;
+import com.bankmega.certification.dto.DivisionResponse;
 import com.bankmega.certification.entity.Division;
 import com.bankmega.certification.exception.ConflictException;
 import com.bankmega.certification.exception.NotFoundException;
@@ -11,6 +12,7 @@ import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -20,42 +22,43 @@ public class DivisionService {
     private final DivisionRepository repo;
     private final EmployeeRepository employeeRepo;
 
-    // 🔹 Ambil semua (buat dropdown)
-    public List<OrgResponse> getAll() {
+    public List<DivisionResponse> getAll() {
         return repo.findAllByOrderByIsActiveDescNameAsc().stream()
                 .map(this::mapToResponse)
                 .toList();
     }
 
-    // 🔹 Create atau ambil existing
-    @Transactional
-    public OrgResponse createOrGet(String name) {
-        Division d = repo.findByNameIgnoreCase(name)
-                .orElseGet(() -> repo.save(Division.builder()
-                        .name(name)
-                        .isActive(true)
-                        .build()));
-        return mapToResponse(d);
-    }
-
-    // 🔹 Search + Pagination
-    public Page<OrgResponse> search(String q, int page, int size) {
+    public Page<DivisionResponse> search(String q, int page, int size) {
         Pageable pageable = PageRequest.of(page, size,
                 Sort.by("isActive").descending().and(Sort.by("name").ascending()));
 
-        Page<Division> result;
-        if (q == null || q.isBlank()) {
-            result = repo.findAll(pageable);
-        } else {
-            result = repo.findByNameContainingIgnoreCase(q, pageable);
-        }
+        Page<Division> result = (q == null || q.isBlank())
+                ? repo.findAll(pageable)
+                : repo.findByNameContainingIgnoreCase(q, pageable);
 
         return result.map(this::mapToResponse);
     }
 
-    // 🔹 Toggle aktif/nonaktif
+    public DivisionResponse getById(Long id) {
+        Division d = repo.findById(id)
+                .orElseThrow(() -> new NotFoundException("Division not found: " + id));
+        return mapToResponse(d);
+    }
+
     @Transactional
-    public OrgResponse toggle(Long id) {
+    public DivisionResponse createOrGet(DivisionRequest req) {
+        Division d = repo.findByNameIgnoreCase(req.getName())
+                .orElseGet(() -> repo.save(Division.builder()
+                        .name(req.getName())
+                        .isActive(true)
+                        .createdAt(Instant.now())
+                        .updatedAt(Instant.now())
+                        .build()));
+        return mapToResponse(d);
+    }
+
+    @Transactional
+    public DivisionResponse toggle(Long id) {
         Division d = repo.findById(id)
                 .orElseThrow(() -> new NotFoundException("Division not found: " + id));
 
@@ -67,12 +70,12 @@ public class DivisionService {
         }
 
         d.setIsActive(!d.getIsActive());
+        d.setUpdatedAt(Instant.now());
         return mapToResponse(repo.save(d));
     }
 
-    // 🔹 Mapper ke DTO
-    private OrgResponse mapToResponse(Division d) {
-        return OrgResponse.builder()
+    private DivisionResponse mapToResponse(Division d) {
+        return DivisionResponse.builder()
                 .id(d.getId())
                 .name(d.getName())
                 .isActive(d.getIsActive())

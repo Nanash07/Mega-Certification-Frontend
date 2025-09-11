@@ -1,6 +1,7 @@
 package com.bankmega.certification.controller;
 
-import com.bankmega.certification.dto.OrgResponse;
+import com.bankmega.certification.dto.UnitRequest;
+import com.bankmega.certification.dto.UnitResponse;
 import com.bankmega.certification.service.UnitService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -16,15 +17,13 @@ public class UnitController {
 
     private final UnitService service;
 
-    // ✅ Ambil semua Unit (tanpa paging)
     @GetMapping("/all")
-    public ResponseEntity<List<OrgResponse>> getAll() {
+    public ResponseEntity<List<UnitResponse>> getAll() {
         return ResponseEntity.ok(service.getAll());
     }
 
-    // ✅ Search + Pagination
     @GetMapping
-    public ResponseEntity<Page<OrgResponse>> search(
+    public ResponseEntity<Page<UnitResponse>> search(
             @RequestParam(required = false) String q,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
@@ -32,15 +31,18 @@ public class UnitController {
         return ResponseEntity.ok(service.search(q, page, size));
     }
 
-    // ✅ Create Unit baru
-    @PostMapping
-    public ResponseEntity<OrgResponse> create(@RequestParam String name) {
-        return ResponseEntity.ok(service.createOrGet(name));
+    @GetMapping("/{id}")
+    public ResponseEntity<UnitResponse> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(service.getById(id));
     }
 
-    // ✅ Toggle aktif/nonaktif
+    @PostMapping
+    public ResponseEntity<UnitResponse> create(@RequestBody UnitRequest req) {
+        return ResponseEntity.ok(service.createOrGet(req));
+    }
+
     @PutMapping("/{id}/toggle")
-    public ResponseEntity<OrgResponse> toggle(@PathVariable Long id) {
+    public ResponseEntity<UnitResponse> toggle(@PathVariable Long id) {
         return ResponseEntity.ok(service.toggle(id));
     }
 }
