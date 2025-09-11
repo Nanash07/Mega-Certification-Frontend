@@ -45,7 +45,7 @@ export default function InstitutionPage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <button className="btn btn-primary" onClick={() => setOpenCreate(true)}>
+        <button className="btn btn-sm btn-primary" onClick={() => setOpenCreate(true)}>
           + Tambah Institution
         </button>
       </div>
@@ -83,7 +83,7 @@ export default function InstitutionPage() {
                   <td>{r.type}</td>
                   <td>{r.address}</td>
                   <td>{r.contactPerson}</td>
-                  <td className="space-x-2">
+                  <td className="space-x-1">
                     <button
                       className="btn btn-sm btn-soft btn-warning border-warning"
                       onClick={() => setEditItem(r)}

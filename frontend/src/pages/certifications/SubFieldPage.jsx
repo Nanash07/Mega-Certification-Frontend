@@ -60,7 +60,7 @@ export default function SubFieldPage() {
       {/* Header */}
       <div className="mb-4 flex">
         <button
-          className="btn btn-primary"
+          className="btn btn-sm btn-primary"
           onClick={() => setOpenCreate(true)}
         >
           + Tambah Sub Bidang
@@ -69,7 +69,7 @@ export default function SubFieldPage() {
 
       {/* Table */}
       <div className="overflow-x-auto rounded-xl border border-gray-200 shadow bg-base-100">
-        <table className="table">
+        <table className="table table-zebra">
           <thead className="bg-base-200 text-xs">
             <tr>
               <th>No.</th>

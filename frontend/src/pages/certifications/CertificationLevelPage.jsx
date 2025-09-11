@@ -60,7 +60,7 @@ export default function CertificationLevelPage() {
       {/* Header + actions */}
       <div className="mb-4 flex">
         <button
-          className="btn btn-primary w-full md:w-auto"
+          className="btn btn-sm btn-primary w-full md:w-auto"
           onClick={() => setOpenCreate(true)}
         >
           + Tambah Jenjang
@@ -97,7 +97,7 @@ export default function CertificationLevelPage() {
                   <td>{idx + 1}</td>
                   <td>{row.level}</td>
                   <td>{row.name}</td>
-                  <td className="space-x-2">
+                  <td className="space-x-1">
                     <button
                       className="btn btn-xs btn-soft btn-warning border-warning"
                       onClick={() => setEditItem(row)}

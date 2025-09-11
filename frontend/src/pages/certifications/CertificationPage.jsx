@@ -66,7 +66,7 @@ export default function CertificationPage() {
     <div>
       <div className="mb-4 flex">
         <button
-          className="btn btn-primary"
+          className="btn btn-sm btn-primary"
           onClick={() => setOpenCreate(true)}
         >
           + Tambah Jenis Sertifikasi

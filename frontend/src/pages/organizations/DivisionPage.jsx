@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import toast from "react-hot-toast";
 import { fetchDivisions, toggleDivision } from "../../services/divisionService";
+import Pagination from "../../components/common/Pagination";
 
 export default function DivisionPage() {
   const [rows, setRows] = useState([]);
@@ -32,7 +33,9 @@ export default function DivisionPage() {
     }
   }
 
-  useEffect(() => { load(); }, [apiParams]);
+  useEffect(() => {
+    load();
+  }, [apiParams]);
 
   async function onToggle(id) {
     try {
@@ -45,12 +48,6 @@ export default function DivisionPage() {
   }
 
   const startIdx = totalElements === 0 ? 0 : (page - 1) * rowsPerPage + 1;
-  const endIdx = Math.min(page * rowsPerPage, totalElements);
-
-  const handleChangePage = (newPage) => {
-    if (newPage < 1 || newPage > totalPages) return;
-    setPage(newPage);
-  };
 
   return (
     <div>
@@ -65,22 +62,12 @@ export default function DivisionPage() {
             placeholder="Cari Division..."
           />
         </div>
-        <div>
-          <label className="label pb-1 font-semibold">Rows per page</label>
-          <select
-            className="select select-bordered"
-            value={rowsPerPage}
-            onChange={(e) => { setRowsPerPage(Number(e.target.value)); setPage(1); }}
-          >
-            {[5, 10, 15, 20, 30, 50].map((n) => <option key={n} value={n}>{n}</option>)}
-          </select>
-        </div>
       </div>
 
       {/* Table */}
       <div className="overflow-x-auto rounded-xl border border-gray-200 shadow bg-base-100">
         <table className="table text-sm">
-          <thead className="bg-base-200">
+          <thead className="text-xs bg-base-200">
             <tr>
               <th>No</th>
               <th>Nama Division</th>
@@ -89,7 +76,7 @@ export default function DivisionPage() {
               <th>Aksi</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="text-xs">
             {loading ? (
               <tr><td colSpan={5} className="text-center py-10"><span className="loading loading-dots loading-md" /></td></tr>
             ) : rows.length === 0 ? (
@@ -97,16 +84,16 @@ export default function DivisionPage() {
             ) : (
               rows.map((d, idx) => (
                 <tr key={d.id}>
-                  <td>{(page - 1) * rowsPerPage + idx + 1}</td>
+                  <td>{startIdx + idx}</td>
                   <td>{d.name}</td>
-                  <td>{d.isActive ? <span className="badge badge-success">Aktif</span> : <span className="badge badge-warning">Tidak Aktif</span>}</td>
+                  <td>{d.isActive ? <span className="badge badge-sm badge-success">Aktif</span> : <span className="badge badge-sm badge-warning">Tidak Aktif</span>}</td>
                   <td>{new Date(d.createdAt).toLocaleDateString("id-ID")}</td>
                   <td>
                     <button
-                      className={`btn btn-sm ${
+                      className={`btn btn-xs ${
                         d.isActive
-                          ? "btn-warning btn-soft border-warning" // tombol kuning buat Nonaktifkan
-                          : "btn-success btn-soft border-success" // tombol hijau buat Aktifkan
+                          ? "btn-warning btn-soft border-warning"
+                          : "btn-success btn-soft border-success"
                       }`}
                       onClick={() => onToggle(d.id)}
                     >
@@ -120,40 +107,18 @@ export default function DivisionPage() {
         </table>
       </div>
 
-      {/* Pagination ellipsis */}
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2 mt-4">
-        <div><span className="text-sm text-gray-500">Menampilkan {startIdx} - {endIdx} dari {totalElements} data</span></div>
-        <div className="flex gap-1">
-          <button className="btn btn-sm btn-outline" disabled={page === 1} onClick={() => handleChangePage(page - 1)}>{"<"}</button>
-          {(() => {
-            const pages = [];
-            const maxPagesToShow = 5;
-            let start = Math.max(1, page - Math.floor(maxPagesToShow / 2));
-            let end = start + maxPagesToShow - 1;
-
-            if (end > totalPages) {
-              end = totalPages;
-              start = Math.max(1, end - maxPagesToShow + 1);
-            }
-
-            if (start > 1) {
-              pages.push(<button key={1} className="btn btn-sm btn-ghost" onClick={() => handleChangePage(1)}>1</button>);
-              if (start > 2) pages.push(<span key="start-ellipsis" className="btn btn-sm btn-disabled">…</span>);
-            }
-
-            for (let i = start; i <= end; i++) {
-              pages.push(<button key={i} className={`btn btn-sm ${page === i ? "btn-primary" : "btn-ghost"}`} onClick={() => handleChangePage(i)}>{i}</button>);
-            }
-
-            if (end < totalPages) {
-              if (end < totalPages - 1) pages.push(<span key="end-ellipsis" className="btn btn-sm btn-disabled">…</span>);
-              pages.push(<button key={totalPages} className="btn btn-sm btn-ghost" onClick={() => handleChangePage(totalPages)}>{totalPages}</button>);
-            }
-            return pages;
-          })()}
-          <button className="btn btn-sm btn-outline" disabled={page === totalPages} onClick={() => handleChangePage(page + 1)}>{">"}</button>
-        </div>
-      </div>
+      {/* Pagination (seragam) */}
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalElements={totalElements}
+        rowsPerPage={rowsPerPage}
+        onPageChange={setPage}
+        onRowsPerPageChange={(val) => {
+          setRowsPerPage(val);
+          setPage(1);
+        }}
+      />
     </div>
   );
 }

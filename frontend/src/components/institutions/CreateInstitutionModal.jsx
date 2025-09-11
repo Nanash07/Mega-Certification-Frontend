@@ -1,76 +1,123 @@
-import { useState } from "react";
+// src/components/institutions/CreateInstitutionModal.jsx
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { createInstitution } from "../../services/institutionService";
 
-export default function CreateInstitutionModal({ open, onClose, onSaved }) {
-  const [form, setForm] = useState({ name: "", type: "Internal", address: "", contactPerson: "" });
+const emptyForm = {
+  name: "",
+  type: "Internal",
+  address: "",
+  contactPerson: "",
+};
 
-  async function onSubmit() {
+export default function CreateInstitutionModal({ open, onClose, onSaved }) {
+  const [form, setForm] = useState(emptyForm);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (open) setForm(emptyForm);
+  }, [open]);
+
+  function setField(key, val) {
+    setForm((f) => ({ ...f, [key]: val }));
+  }
+
+  async function onSubmit(e) {
+    e.preventDefault();
     if (!form.name || !form.type) {
       toast.error("Nama & Type wajib diisi");
       return;
     }
+    setSubmitting(true);
     try {
       await createInstitution(form);
-      toast.success("Institution ditambahkan");
-      onSaved();
-    } catch {
-      toast.error("Gagal menambah institution");
+      toast.success("✅ Institution berhasil ditambahkan");
+      onSaved?.();
+      onClose?.();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || "❌ Gagal menambah institution");
+    } finally {
+      setSubmitting(false);
     }
   }
 
+  if (!open) return null;
+
   return (
-    <dialog className={`modal ${open ? "modal-open" : ""}`}>
-      <div className="modal-box max-w-lg">
+    <dialog open className="modal">
+      <div className="modal-box max-w-2xl">
         <h3 className="font-bold text-lg mb-4">Tambah Institution</h3>
+        <form onSubmit={onSubmit} className="space-y-4">
+          {/* Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Nama */}
+            <div>
+              <label className="text-sm opacity-70">Nama</label>
+              <input
+                type="text"
+                className="input input-bordered w-full mt-1"
+                value={form.name}
+                onChange={(e) => setField("name", e.target.value)}
+                required
+              />
+            </div>
 
-        <div className="form-control mb-3">
-          <label className="label">Nama</label>
-          <input
-            className="input input-bordered"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-        </div>
+            {/* Type */}
+            <div>
+              <label className="text-sm opacity-70">Type</label>
+              <select
+                className="select select-bordered w-full mt-1"
+                value={form.type}
+                onChange={(e) => setField("type", e.target.value)}
+                required
+              >
+                <option value="Internal">Internal</option>
+                <option value="External">External</option>
+              </select>
+            </div>
+          </div>
 
-        <div className="form-control mb-3">
-          <label className="label">Type</label>
-          <select
-            className="select select-bordered"
-            value={form.type}
-            onChange={(e) => setForm({ ...form, type: e.target.value })}
-          >
-            <option value="Internal">Internal</option>
-            <option value="External">External</option>
-          </select>
-        </div>
+          {/* Alamat */}
+          <div>
+            <label className="text-sm opacity-70">Alamat</label>
+            <input
+              type="text"
+              className="input input-bordered w-full mt-1"
+              value={form.address}
+              onChange={(e) => setField("address", e.target.value)}
+            />
+          </div>
 
-        <div className="form-control mb-3">
-          <label className="label">Alamat</label>
-          <input
-            className="input input-bordered"
-            value={form.address}
-            onChange={(e) => setForm({ ...form, address: e.target.value })}
-          />
-        </div>
+          {/* Contact Person */}
+          <div>
+            <label className="text-sm opacity-70">Contact Person</label>
+            <input
+              type="text"
+              className="input input-bordered w-full mt-1"
+              value={form.contactPerson}
+              onChange={(e) => setField("contactPerson", e.target.value)}
+            />
+          </div>
 
-        <div className="form-control mb-3">
-          <label className="label">Contact Person</label>
-          <input
-            className="input input-bordered"
-            value={form.contactPerson}
-            onChange={(e) => setForm({ ...form, contactPerson: e.target.value })}
-          />
-        </div>
-
-        <div className="modal-action">
-          <button className="btn" onClick={onClose}>
-            Batal
-          </button>
-          <button className="btn btn-primary" onClick={onSubmit}>
-            Simpan
-          </button>
-        </div>
+          {/* Actions */}
+          <div className="modal-action mt-6">
+            <button
+              type="button"
+              className="btn"
+              onClick={onClose}
+              disabled={submitting}
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              className={`btn btn-primary ${submitting ? "loading" : ""}`}
+              disabled={submitting}
+            >
+              Simpan
+            </button>
+          </div>
+        </form>
       </div>
       <form method="dialog" className="modal-backdrop">
         <button onClick={onClose}>close</button>

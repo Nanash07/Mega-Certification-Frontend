@@ -17,10 +17,10 @@ export default function Pagination({
   const endIdx = Math.min(page * rowsPerPage, totalElements);
 
   return (
-    <div className="flex items-center justify-between mt-2 px-3 py-2 text-sm">
-      {/* Rows per page */}
-      <div className="grid grid-cols-2 items-center gap-2">
-        Rows per page
+    <div className="flex flex-wrap items-center justify-between gap-3 mt-3 px-3 py-2 text-xs">
+      {/* Rows per page → selalu tampil di semua screen */}
+      <div className="flex items-center gap-2">
+        <span className="whitespace-nowrap">Rows per page</span>
         <select
           className="select select-sm select-bordered"
           value={rowsPerPage}
@@ -34,11 +34,12 @@ export default function Pagination({
         </select>
       </div>
 
-      {/* Info & controls */}
-      <div className="flex items-center gap-4">
-        <span>
+      {/* Info + controls */}
+      <div className="flex items-center gap-4 flex-1 justify-between md:justify-end">
+        <span className="text-gray-500">
           {startIdx} - {endIdx} of {totalElements}
         </span>
+
         <div className="flex items-center gap-1">
           <button
             className="btn btn-xs btn-ghost"

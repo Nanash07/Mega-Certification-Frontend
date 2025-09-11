@@ -107,7 +107,7 @@ export default function JobCertificationMappingPage() {
         {/* Row 1: Search + Spacer + Actions */}
         <div className="grid grid-cols-1 lg:grid-cols-6 gap-3">
           {/* Search */}
-          <div className="col-span-1 lg:col-span-2">
+          <div className="col-span-1 lg:col-span-4">
             <input
               type="text"
               className="input input-sm input-bordered w-full"
@@ -119,10 +119,6 @@ export default function JobCertificationMappingPage() {
               }}
             />
           </div>
-
-          {/* Spacer (hidden di mobile) */}
-          <div className="hidden lg:block lg:col-span-2" />
-
           {/* Download */}
           <div className="col-span-1">
             <button

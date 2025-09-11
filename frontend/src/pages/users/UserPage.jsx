@@ -1,16 +1,16 @@
-// src/pages/users/UserPage.jsx
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { fetchUsers, fetchUserDetail, deleteUser } from "../../services/userService";
 import { fetchRoles } from "../../services/roleService";
 import CreateUserModal from "../../components/users/CreateUserModal";
 import EditUserModal from "../../components/users/EditUserModal";
+import Pagination from "../../components/common/Pagination";
 
 export default function UserPage() {
   // filters
   const [roles, setRoles] = useState([]);
   const [roleId, setRoleId] = useState("");
-  const [q, setQ] = useState("");
+  const [search, setSearch] = useState("");
 
   // paging
   const [page, setPage] = useState(1);
@@ -32,29 +32,29 @@ export default function UserPage() {
   useEffect(() => {
     fetchRoles()
       .then(setRoles)
-      .catch(() => toast.error("Gagal memuat role", { id: "roles-load" }));
+      .catch(() => toast.error("❌ Gagal memuat role", { id: "roles-load" }));
   }, []);
 
   // param API
   const apiParams = useMemo(
     () => ({
-      q: q?.trim() || undefined,
+      search: search?.trim() || undefined,
       roleId: roleId ? Number(roleId) : undefined,
       page: page - 1,
       size: rowsPerPage,
     }),
-    [q, roleId, page, rowsPerPage]
+    [search, roleId, page, rowsPerPage]
   );
 
   async function load() {
     setLoading(true);
     try {
       const data = await fetchUsers(apiParams);
-      setRows(data.content || data); // fallback kalau BE balikin array
+      setRows(data.content || data);
       setTotalPages(Math.max(data.totalPages || 1, 1));
       setTotalElements(data.totalElements ?? (data.content?.length ?? data.length ?? 0));
     } catch (e) {
-      toast.error(e?.response?.data?.message ?? "Gagal memuat data", { id: "users-load" });
+      toast.error(e?.response?.data?.message ?? "❌ Gagal memuat data", { id: "users-load" });
     } finally {
       setLoading(false);
     }
@@ -62,7 +62,6 @@ export default function UserPage() {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiParams]);
 
   function onSaved() {
@@ -75,10 +74,10 @@ export default function UserPage() {
   async function onDelete(id) {
     try {
       await deleteUser(id);
-      toast.success("User dihapus", { id: "user-delete" });
+      toast.success("✅ User dihapus", { id: "user-delete" });
       load();
     } catch (e) {
-      toast.error(e?.response?.data?.message ?? "Gagal menghapus user", { id: "user-delete" });
+      toast.error(e?.response?.data?.message ?? "❌ Gagal menghapus user", { id: "user-delete" });
     }
   }
 
@@ -88,25 +87,52 @@ export default function UserPage() {
       setDetail(u);
       document.getElementById("detail_modal").showModal();
     } catch {
-      toast.error("Gagal memuat detail", { id: "user-detail" });
+      toast.error("❌ Gagal memuat detail", { id: "user-detail" });
     }
   }
 
+  // reset filter
+  function resetFilter() {
+    setRoleId("");
+    setSearch("");
+    setPage(1);
+    toast.success("Filter berhasil direset");
+  }
+
   const startIdx = totalElements === 0 ? 0 : (page - 1) * rowsPerPage + 1;
-  const endIdx = Math.min(page * rowsPerPage, totalElements);
-  const handleChangePage = (newPage) => {
-    if (newPage < 1 || newPage > totalPages) return;
-    setPage(newPage);
-  };
 
   return (
-    <div className="">
-      {/* Filter bar */}
-      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:gap-6">
-        <div>
-          <label className="label pb-1 font-semibold">Role</label>
+    <div>
+      {/* Toolbar */}
+      <div className="mb-4 space-y-3">
+        {/* Row 1: Search + Tambah User */}
+        <div className="grid grid-cols-1 lg:grid-cols-6 gap-3">
+          <div className="col-span-1 lg:col-span-4">
+            <input
+              type="text"
+              className="input input-sm input-bordered w-full"
+              placeholder="🔍 Cari username / email…"
+              value={search}
+              onChange={(e) => {
+                setPage(1);
+                setSearch(e.target.value);
+              }}
+            />
+          </div>
+          <div className="col-span-1 lg:col-span-2">
+            <button
+              className="btn btn-primary btn-sm w-full"
+              onClick={() => setOpenCreate(true)}
+            >
+              + Tambah User
+            </button>
+          </div>
+        </div>
+
+        {/* Row 2: Filters */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 text-xs">
           <select
-            className="select select-bordered w-full max-w-xs"
+            className="select select-sm select-bordered w-full"
             value={roleId}
             onChange={(e) => {
               setPage(1);
@@ -120,53 +146,21 @@ export default function UserPage() {
               </option>
             ))}
           </select>
-        </div>
-
-        <div className="flex-1 min-w-[16rem]">
-          <label className="label pb-1 font-semibold">Search</label>
-          <input
-            className="input input-bordered w-full"
-            value={q}
-            onChange={(e) => {
-              setPage(1);
-              setQ(e.target.value);
-            }}
-            placeholder="Cari username / email…"
-          />
-        </div>
-
-        <div>
-          <label className="label pb-1 font-semibold">Rows per page</label>
-          <select
-            className="select select-bordered"
-            value={rowsPerPage}
-            onChange={(e) => {
-              setRowsPerPage(Number(e.target.value));
-              setPage(1);
-            }}
-          >
-            {[5, 10, 15, 20, 30, 50].map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="md:ml-auto">
-          <button
-            className="btn btn-primary w-full md:w-auto"
-            onClick={() => setOpenCreate(true)}
-          >
-            + Tambah User
-          </button>
+          <div>
+            <button
+              className="btn btn-accent btn-soft border-accent btn-sm w-full"
+              onClick={resetFilter}
+            >
+              Reset Filter
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Table */}
       <div className="overflow-x-auto rounded-xl border border-gray-200 shadow bg-base-100">
-        <table className="table">
-          <thead className="bg-base-200">
+        <table className="table table-zebra">
+          <thead className="bg-base-200 text-xs">
             <tr>
               <th>No.</th>
               <th>Username</th>
@@ -177,7 +171,7 @@ export default function UserPage() {
               <th>Aksi</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="text-xs">
             {loading ? (
               <tr>
                 <td colSpan={7} className="py-10 text-center">
@@ -193,7 +187,7 @@ export default function UserPage() {
             ) : (
               rows.map((u, idx) => (
                 <tr key={u.id}>
-                  <td>{(page - 1) * rowsPerPage + idx + 1}</td>
+                  <td>{startIdx + idx}</td>
                   <td>
                     <button className="link" onClick={() => openDetail(u.id)}>
                       {u.username}
@@ -215,20 +209,20 @@ export default function UserPage() {
                       <span className="badge">Nonaktif</span>
                     )}
                   </td>
-                  <td className="text-right space-x-2">
+                  <td className="flex gap-2 justify-end">
                     <button
-                      className="btn btn-sm btn-outline btn-warning"
+                      className="btn btn-xs btn-warning"
                       onClick={() => setEditUser(u)}
                     >
                       Edit
                     </button>
                     <button
-                      className="btn btn-sm btn-outline btn-error"
+                      className="btn btn-xs btn-error"
                       onClick={() =>
                         setConfirm({ open: true, id: u.id, name: u.username })
                       }
                     >
-                      Delete
+                      Hapus
                     </button>
                   </td>
                 </tr>
@@ -238,41 +232,18 @@ export default function UserPage() {
         </table>
       </div>
 
-      {/* Pagination */}
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2 mt-4">
-        <div>
-          <span className="text-sm text-gray-500">
-            Menampilkan {startIdx} - {endIdx} dari {totalElements} data
-          </span>
-        </div>
-        <div className="flex gap-1">
-          <button
-            className="btn btn-sm btn-outline"
-            disabled={page === 1}
-            onClick={() => handleChangePage(page - 1)}
-          >
-            {"<"}
-          </button>
-          {Array.from({ length: totalPages }).map((_, i) => (
-            <button
-              key={i}
-              className={`btn btn-sm ${
-                page === i + 1 ? "btn-primary" : "btn-ghost"
-              }`}
-              onClick={() => handleChangePage(i + 1)}
-            >
-              {i + 1}
-            </button>
-          ))}
-          <button
-            className="btn btn-sm btn-outline"
-            disabled={page === totalPages}
-            onClick={() => handleChangePage(page + 1)}
-          >
-            {">"}
-          </button>
-        </div>
-      </div>
+      {/* Pagination (seragam) */}
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalElements={totalElements}
+        rowsPerPage={rowsPerPage}
+        onPageChange={setPage}
+        onRowsPerPageChange={(val) => {
+          setRowsPerPage(val);
+          setPage(1);
+        }}
+      />
 
       {/* Modals */}
       <CreateUserModal

@@ -30,7 +30,7 @@ const Navbar = ({ onMenuClick }) => {
       </button>
 
       {/* Title kiri */}
-      <h1 className="ml-4 font-semibold text-lg">{title}</h1>
+      <h1 className="ml-4 font-bold text-base sm:text-lg md:text-xl lg:text-2xl truncate whitespace-nowrap overflow-hidden max-w-[50%] sm:max-w-[60%] md:max-w-[70%] lg:max-w-[80%]">{title}</h1>
 
       {/* Right */}
       <div className="flex items-center gap-4 ml-auto">

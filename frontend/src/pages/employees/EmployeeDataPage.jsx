@@ -12,7 +12,6 @@ import {
   fetchJobPositions,
 } from "../../services/employeeService";
 import Pagination from "../../components/common/Pagination";
-import CreateEmployeeModal from "../../components/employees/CreateEmployeeModal";
 import EditEmployeeModal from "../../components/employees/EditEmployeeModal";
 
 export default function EmployeePage() {
@@ -47,7 +46,6 @@ export default function EmployeePage() {
   ];
 
   // Modals
-  const [openCreate, setOpenCreate] = useState(false);
   const [editItem, setEditItem] = useState(null);
 
   // Load master data
@@ -91,6 +89,18 @@ export default function EmployeePage() {
   useEffect(() => {
     load();
   }, [page, rowsPerPage, search, regionalIds, divisionIds, unitIds, jobPositionIds, statuses]);
+
+  // Reset filter
+  function resetFilter() {
+    setRegionalIds([]);
+    setDivisionIds([]);
+    setUnitIds([]);
+    setJobPositionIds([]);
+    setStatuses([]);
+    setSearch("");
+    setPage(1);
+    toast.success("Filter berhasil direset");
+  }
 
   // Delete employee
   async function onDelete(id) {
@@ -145,36 +155,47 @@ export default function EmployeePage() {
     <div>
       {/* Toolbar */}
       <div className="mb-4 space-y-3">
-        <div className="flex justify-between gap-3">
-          <input
-            type="text"
-            className="input input-sm input-bordered w-md"
-            placeholder="🔍 Cari NIP, Nama, Email..."
-            value={search}
-            onChange={(e) => {
-              setPage(1);
-              setSearch(e.target.value);
-            }}
-          />
-          <div className="flex gap-2">
-            <label className="btn btn-success btn-sm cursor-pointer">
+        {/* Row 1: Search + Import/Download */}
+        <div className="grid grid-cols-1 lg:grid-cols-6 gap-3">
+          <div className="col-span-1 lg:col-span-4">
+            <input
+              type="text"
+              className="input input-sm input-bordered w-full"
+              placeholder="🔍 Cari NIP, Nama, Email..."
+              value={search}
+              onChange={(e) => {
+                setPage(1);
+                setSearch(e.target.value);
+              }}
+            />
+          </div>
+          <div className="col-span-1 lg:col-span-2 flex gap-2">
+            <button className="btn btn-primary btn-sm flex-1" onClick={handleDownloadTemplate}>
+              Download Template
+            </button>
+            <label className="btn btn-success btn-sm flex-1 cursor-pointer">
               Import Excel
               <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} />
             </label>
-            <button className="btn btn-outline btn-sm" onClick={handleDownloadTemplate}>
-              Download Template
+          </div>
+        </div>
+
+        {/* Row 2: Filters */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 text-xs">
+          <Select isMulti options={regionalOptions} value={regionalIds} onChange={setRegionalIds} placeholder="Filter Regional" />
+          <Select isMulti options={divisionOptions} value={divisionIds} onChange={setDivisionIds} placeholder="Filter Division" />
+          <Select isMulti options={unitOptions} value={unitIds} onChange={setUnitIds} placeholder="Filter Unit" />
+          <Select isMulti options={jobOptions} value={jobPositionIds} onChange={setJobPositionIds} placeholder="Filter Jabatan" />
+          <Select isMulti options={statusOptions} value={statuses} onChange={setStatuses} placeholder="Filter Status" />
+          <div>
+            <button
+              className="btn btn-accent btn-soft border-accent btn-sm w-full"
+              onClick={resetFilter}
+            >
+              Reset Filter
             </button>
           </div>
         </div>
-      </div>
-
-      {/* Filters */}
-      <div className="mb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
-        <Select isMulti options={regionalOptions} value={regionalIds} onChange={setRegionalIds} placeholder="Filter Regional" />
-        <Select isMulti options={divisionOptions} value={divisionIds} onChange={setDivisionIds} placeholder="Filter Division" />
-        <Select isMulti options={unitOptions} value={unitIds} onChange={setUnitIds} placeholder="Filter Unit" />
-        <Select isMulti options={jobOptions} value={jobPositionIds} onChange={setJobPositionIds} placeholder="Filter Jabatan" />
-        <Select isMulti options={statusOptions} value={statuses} onChange={setStatuses} placeholder="Filter Status" />
       </div>
 
       {/* Table */}
@@ -224,10 +245,10 @@ export default function EmployeePage() {
                   <td>{e.status}</td>
                   <td>{e.joinDate ? new Date(e.joinDate).toLocaleDateString("id-ID") : "-"}</td>
                   <td className="flex gap-2">
-                    <button className="btn btn-xs btn-warning" onClick={() => setEditItem(e)}>
+                    <button className="btn btn-xs btn-warning btn-soft border-warning" onClick={() => setEditItem(e)}>
                       Edit
                     </button>
-                    <button className="btn btn-xs btn-error" onClick={() => onDelete(e.id)}>
+                    <button className="btn btn-xs btn-error btn-soft border-error" onClick={() => onDelete(e.id)}>
                       Hapus
                     </button>
                   </td>
