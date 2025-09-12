@@ -1,18 +1,18 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import Select from "react-select";
+import Pagination from "../../components/common/Pagination";
 import {
   fetchEmployees,
   deleteEmployee,
-  importEmployeesExcel,
   downloadEmployeeTemplate,
   fetchRegionals,
   fetchDivisions,
   fetchUnits,
   fetchJobPositions,
 } from "../../services/employeeService";
-import Pagination from "../../components/common/Pagination";
 import EditEmployeeModal from "../../components/employees/EditEmployeeModal";
+import ImportEmployeeModal from "../../components/employees/ImportEmployeeModal";
 
 export default function EmployeePage() {
   const [rows, setRows] = useState([]);
@@ -24,10 +24,8 @@ export default function EmployeePage() {
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
 
-  // Search
+  // Search & Filters
   const [search, setSearch] = useState("");
-
-  // Filters
   const [regionalIds, setRegionalIds] = useState([]);
   const [divisionIds, setDivisionIds] = useState([]);
   const [unitIds, setUnitIds] = useState([]);
@@ -43,10 +41,13 @@ export default function EmployeePage() {
     { value: "ACTIVE", label: "Active" },
     { value: "INACTIVE", label: "Inactive" },
     { value: "MUTASI", label: "Mutasi" },
+    { value: "RESIGN", label: "Resign" },
   ];
 
   // Modals
   const [editItem, setEditItem] = useState(null);
+  const [openImport, setOpenImport] = useState(false);
+  const [confirm, setConfirm] = useState({ open: false, id: null });
 
   // Load master data
   useEffect(() => {
@@ -102,32 +103,16 @@ export default function EmployeePage() {
     toast.success("Filter berhasil direset");
   }
 
-  // Delete employee
-  async function onDelete(id) {
-    if (!confirm("Hapus pegawai ini?")) return;
+  // Confirm delete
+  async function handleDelete(id) {
     try {
       await deleteEmployee(id);
       toast.success("✅ Pegawai berhasil dihapus");
       load();
     } catch (err) {
       toast.error(err?.response?.data?.message || "❌ Gagal menghapus pegawai");
-    }
-  }
-
-  // Import excel
-  async function handleImport(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const formData = new FormData();
-    formData.append("file", file);
-    try {
-      await importEmployeesExcel(formData);
-      toast.success("✅ Data pegawai berhasil diimport");
-      load();
-    } catch (err) {
-      toast.error(err?.response?.data?.message || "❌ Gagal import pegawai");
     } finally {
-      e.target.value = "";
+      setConfirm({ open: false, id: null });
     }
   }
 
@@ -155,7 +140,6 @@ export default function EmployeePage() {
     <div>
       {/* Toolbar */}
       <div className="mb-4 space-y-3">
-        {/* Row 1: Search + Import/Download */}
         <div className="grid grid-cols-1 lg:grid-cols-6 gap-3">
           <div className="col-span-1 lg:col-span-4">
             <input
@@ -169,18 +153,19 @@ export default function EmployeePage() {
               }}
             />
           </div>
-          <div className="col-span-1 lg:col-span-2 flex gap-2">
-            <button className="btn btn-primary btn-sm flex-1" onClick={handleDownloadTemplate}>
+          <div className="col-span-1">
+            <button className="btn btn-warning btn-sm w-full" onClick={handleDownloadTemplate}>
               Download Template
             </button>
-            <label className="btn btn-success btn-sm flex-1 cursor-pointer">
+          </div>
+          <div className="col-span-1">
+            <button className="btn btn-success btn-sm w-full" onClick={() => setOpenImport(true)}>
               Import Excel
-              <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} />
-            </label>
+            </button>
           </div>
         </div>
 
-        {/* Row 2: Filters */}
+        {/* Filters */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 text-xs">
           <Select isMulti options={regionalOptions} value={regionalIds} onChange={setRegionalIds} placeholder="Filter Regional" />
           <Select isMulti options={divisionOptions} value={divisionIds} onChange={setDivisionIds} placeholder="Filter Division" />
@@ -188,10 +173,7 @@ export default function EmployeePage() {
           <Select isMulti options={jobOptions} value={jobPositionIds} onChange={setJobPositionIds} placeholder="Filter Jabatan" />
           <Select isMulti options={statusOptions} value={statuses} onChange={setStatuses} placeholder="Filter Status" />
           <div>
-            <button
-              className="btn btn-accent btn-soft border-accent btn-sm w-full"
-              onClick={resetFilter}
-            >
+            <button className="btn btn-accent btn-soft border-accent btn-sm w-full" onClick={resetFilter}>
               Reset Filter
             </button>
           </div>
@@ -248,7 +230,7 @@ export default function EmployeePage() {
                     <button className="btn btn-xs btn-warning btn-soft border-warning" onClick={() => setEditItem(e)}>
                       Edit
                     </button>
-                    <button className="btn btn-xs btn-error btn-soft border-error" onClick={() => onDelete(e.id)}>
+                    <button className="btn btn-xs btn-error btn-soft border-error" onClick={() => setConfirm({ open: true, id: e.id })}>
                       Hapus
                     </button>
                   </td>
@@ -274,6 +256,27 @@ export default function EmployeePage() {
 
       {/* Modals */}
       <EditEmployeeModal open={!!editItem} initial={editItem} onClose={() => setEditItem(null)} onSaved={load} />
+
+      <ImportEmployeeModal open={openImport} onClose={() => setOpenImport(false)} onImported={load} />
+
+      {/* Confirm Delete Modal */}
+      <dialog className="modal" open={confirm.open}>
+        <div className="modal-box">
+          <h3 className="font-bold text-lg">Hapus Pegawai?</h3>
+          <p className="py-2">Pegawai ini akan dihapus dari sistem.</p>
+          <div className="modal-action">
+            <button className="btn" onClick={() => setConfirm({ open: false, id: null })}>
+              Batal
+            </button>
+            <button className="btn btn-error" onClick={() => handleDelete(confirm.id)}>
+              Hapus
+            </button>
+          </div>
+        </div>
+        <form method="dialog" className="modal-backdrop">
+          <button onClick={() => setConfirm({ open: false, id: null })}>close</button>
+        </form>
+      </dialog>
     </div>
   );
 }

@@ -8,13 +8,36 @@ import {
   ChevronDown,
   ChevronUp,
   BadgeCheck,
+  Bell,
+  FileText,
+  Layers,
+  ClipboardList,
+  Settings,
 } from "lucide-react";
 
 // ================== MENU MASTER ==================
 export const MENU = [
-  { label: "Dashboard", icon: <LayoutDashboard size={18} />, href: "/dashboard", key: "dashboard" },
+  // 1. Dashboard & Monitoring
+  {
+    label: "Dashboard",
+    icon: <LayoutDashboard size={18} />,
+    href: "/dashboard",
+    key: "dashboard",
+  },
+  {
+    label: "Reminder / Notifikasi",
+    icon: <Bell size={18} />,
+    href: "/reminder",
+    key: "reminder",
+  },
+  {
+    label: "Reports",
+    icon: <FileText size={18} />,
+    href: "/reports",
+    key: "reports",
+  },
 
-  // Employee
+  // 2. Data Pegawai & Organization
   {
     label: "Employee",
     icon: <User size={18} />,
@@ -23,11 +46,9 @@ export const MENU = [
       { label: "Data Pegawai", href: "/employee/data" },
       { label: "Eligibility", href: "/employee/eligibility" },
       { label: "Eligibility Manual", href: "/employee/exception" },
-      //{ label: "Tracking Sertifikasi", href: "/employee/certification" }, // FE tracking sertifikat
+      { label: "Tracking Sertifikasi", href: "/employee/certification" },
     ],
   },
-
-  // Organization
   {
     label: "Organization",
     icon: <Users size={18} />,
@@ -40,7 +61,7 @@ export const MENU = [
     ],
   },
 
-  // Sertifikasi Master
+  // 3. Master Sertifikasi
   {
     label: "Sertifikasi",
     icon: <BadgeCheck size={18} />,
@@ -54,36 +75,35 @@ export const MENU = [
     ],
   },
 
-  // Mapping & Rules
+  // 4. Mapping & Scope
   {
-    label: "Mapping & Rules",
+    label: "Mapping",
     icon: <ListChecks size={18} />,
     key: "mapping",
     subMenu: [
-      { label: "Jabatan ↔ Sertifikasi", href: "/mapping/job-certification" },
-      { label: "PIC Certification Scope", href: "/mapping/pic-certification-scope" }, // ✅ fix di sini
+      { label: "Mapping Jabatan Sertifikasi", href: "/mapping/job-certification" },
+      { label: "PIC Scope", href: "/mapping/pic-certification-scope" },
     ],
   },
 
-  // Batch Sertifikasi
-  /*{
+  // 5. Batch Sertifikasi
+  {
     label: "Batch Sertifikasi",
-    icon: <ListChecks size={20} />,
+    icon: <ClipboardList size={18} />,
     key: "batch",
     subMenu: [
       { label: "Daftar Batch", href: "/batch" },
       { label: "Registrasi Pegawai", href: "/batch/registrasi" },
     ],
-  },*/
+  },
 
-  // Reminder
-  //{ label: "Reminder", icon: <ListChecks size={20} />, href: "/reminder", key: "reminder" },
-
-  // Reports
-  //{ label: "Reports", icon: <ListChecks size={20} />, href: "/reports", key: "reports" },
-
-  // Manajemen User
-  { label: "Manajemen User", icon: <Users size={18} />, href: "/user", key: "user" },
+  // 6. User & Role Management
+  {
+    label: "Manajemen User",
+    icon: <Settings size={18} />,
+    href: "/user",
+    key: "user",
+  },
 ];
 
 // ======== ROLE-BASED FILTERING ========
@@ -94,20 +114,26 @@ const filterMenuByRole = (menu, roleRaw) => {
   if (role === "PIC") {
     return menu
       .filter((item) => item.key !== "user") // hide Manajemen User untuk PIC
-      .map((item) =>
-        item.key === "sertifikasi"
-          ? {
-              ...item,
-              subMenu: item.subMenu.filter(
-                (sub) => sub.label !== "Jenjang" && sub.label !== "Jenis"
-              ),
-            }
-          : item
-      );
+      .map((item) => {
+        if (item.key === "sertifikasi") {
+          return {
+            ...item,
+            subMenu: item.subMenu.filter(
+              (sub) => sub.label !== "Jenjang" && sub.label !== "Jenis"
+            ),
+          };
+        }
+        return item;
+      });
   }
 
-  // Default (PEGAWAI / unknown): cuma Dashboard
-  return menu.filter((item) => item.key === "dashboard");
+  // Default (PEGAWAI / unknown): cuma menu personal
+  return menu.filter(
+    (item) =>
+      item.key === "dashboard" ||
+      item.key === "employee" ||
+      item.key === "reminder"
+  );
 };
 
 export default function Sidebar({ open, setOpen }) {
@@ -128,7 +154,7 @@ export default function Sidebar({ open, setOpen }) {
       (m) => m.subMenu && m.subMenu.some((s) => location.pathname.startsWith(s.href))
     );
     if (parent) setOpenMenu(parent.key);
-  }, [location.pathname, visibleMenu]); // ← tambahin visibleMenu juga
+  }, [location.pathname, visibleMenu]);
 
   const handleMenuClick = (key) => setOpenMenu((prev) => (prev === key ? "" : key));
   const handleLinkClick = () => {
@@ -147,7 +173,7 @@ export default function Sidebar({ open, setOpen }) {
       {open && <div className="fixed inset-0 z-30 lg:hidden" onClick={() => setOpen(false)} />}
       <aside
         className={`
-          fixed z-40 top-0 left-0 h-full w-52 bg-white shadow-sm
+          fixed z-40 top-0 left-0 h-full w-56 bg-white shadow-sm
           flex flex-col transition-transform duration-300
           ${open ? "translate-x-0" : "-translate-x-full"}
           border-r border-gray-200
@@ -166,8 +192,8 @@ export default function Sidebar({ open, setOpen }) {
               <div key={item.key} className="mb-2">
                 <button
                   onClick={() => handleMenuClick(item.key)}
-                  className={`btn w-full justify-start gap-3 mb-2 text-xs  ${
-                    isMenuActive(item) ? "btn-ghost" : "btn-ghost"
+                  className={`btn w-full justify-start gap-3 mb-2 text-xs ${
+                    isMenuActive(item) ? "btn-primary" : "btn-ghost"
                   }`}
                 >
                   {item.icon}

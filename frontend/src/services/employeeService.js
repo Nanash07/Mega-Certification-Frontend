@@ -1,13 +1,23 @@
 import api from "./api";
 
-const BASE_URL = "/employees";
+const EMPLOYEE_BASE = "/employees";
+const IMPORT_BASE = "/employees/import";
 
-// ================== EMPLOYEE ==================
+// ================== EMPLOYEE CRUD ==================
 
-// 🔹 Ambil data pegawai dengan paging + filter
+// 🔹 Ambil data pegawai dengan paging + filter + sorting
 export async function fetchEmployees(params) {
   try {
-    const { data } = await api.get(`${BASE_URL}/paged`, { params });
+    const query = { ...params };
+
+    // 👉 Convert sortField & sortDirection jadi format Spring: sort=field,direction
+    if (params.sortField) {
+      query.sort = `${params.sortField},${params.sortDirection || "asc"}`;
+      delete query.sortField;
+      delete query.sortDirection;
+    }
+
+    const { data } = await api.get(`${EMPLOYEE_BASE}/paged`, { params: query });
     return data || { content: [], totalPages: 0, totalElements: 0 };
   } catch (err) {
     console.error("❌ fetchEmployees error:", err);
@@ -18,7 +28,7 @@ export async function fetchEmployees(params) {
 // 🔹 Delete pegawai (soft delete)
 export async function deleteEmployee(id) {
   try {
-    await api.delete(`${BASE_URL}/${id}`);
+    await api.delete(`${EMPLOYEE_BASE}/${id}`);
     return true;
   } catch (err) {
     console.error("❌ deleteEmployee error:", err);
@@ -29,7 +39,7 @@ export async function deleteEmployee(id) {
 // 🔹 Create pegawai
 export async function createEmployee(payload) {
   try {
-    const { data } = await api.post(BASE_URL, payload);
+    const { data } = await api.post(EMPLOYEE_BASE, payload);
     return data;
   } catch (err) {
     console.error("❌ createEmployee error:", err);
@@ -40,7 +50,7 @@ export async function createEmployee(payload) {
 // 🔹 Update pegawai
 export async function updateEmployee(id, payload) {
   try {
-    const { data } = await api.put(`${BASE_URL}/${id}`, payload);
+    const { data } = await api.put(`${EMPLOYEE_BASE}/${id}`, payload);
     return data;
   } catch (err) {
     console.error("❌ updateEmployee error:", err);
@@ -48,11 +58,13 @@ export async function updateEmployee(id, payload) {
   }
 }
 
+// ================== IMPORT EMPLOYEES ==================
+
 // 🔹 Download template Excel
 export async function downloadEmployeeTemplate() {
   try {
-    const res = await api.get(`${BASE_URL}/template`, {
-      responseType: "blob", // ✅ biar hasilnya file binary
+    const res = await api.get(`${IMPORT_BASE}/template`, {
+      responseType: "blob",
     });
     return res.data;
   } catch (err) {
@@ -61,16 +73,51 @@ export async function downloadEmployeeTemplate() {
   }
 }
 
-// 🔹 Import pegawai via Excel
-export async function importEmployeesExcel(formData) {
+// 🔹 Dry run import pegawai
+export async function importEmployeesDryRun(formData) {
   try {
-    const { data } = await api.post(`${BASE_URL}/import`, formData, {
+    const { data } = await api.post(`${IMPORT_BASE}/dry-run`, formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
     return data;
   } catch (err) {
-    console.error("❌ importEmployeesExcel error:", err);
+    console.error("❌ importEmployeesDryRun error:", err);
     throw err;
+  }
+}
+
+// 🔹 Confirm import pegawai
+export async function importEmployeesConfirm(formData) {
+  try {
+    const { data } = await api.post(`${IMPORT_BASE}/confirm`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return data;
+  } catch (err) {
+    console.error("❌ importEmployeesConfirm error:", err);
+    throw err;
+  }
+}
+
+// 🔹 Ambil semua logs import
+export async function fetchEmployeeImportLogs() {
+  try {
+    const { data } = await api.get(`${IMPORT_BASE}/logs`);
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.error("❌ fetchEmployeeImportLogs error:", err);
+    return [];
+  }
+}
+
+// 🔹 Ambil logs import by user
+export async function fetchEmployeeImportLogsByUser(userId) {
+  try {
+    const { data } = await api.get(`${IMPORT_BASE}/logs/${userId}`);
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.error("❌ fetchEmployeeImportLogsByUser error:", err);
+    return [];
   }
 }
 

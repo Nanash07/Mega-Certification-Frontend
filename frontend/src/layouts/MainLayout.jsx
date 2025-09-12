@@ -7,7 +7,7 @@ export default function MainLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="h-screen w-full flex">
+    <div className="h-screen w-full flex bg-slate-50">
       {/* sidebar kiri */}
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
 

@@ -46,11 +46,7 @@ public class EmployeeService {
                     pageable.getPageNumber(),
                     pageable.getPageSize(),
                     Sort.by(
-                            Sort.Order.asc("regional.name"),
-                            Sort.Order.asc("division.name"),
-                            Sort.Order.asc("unit.name"),
-                            Sort.Order.asc("jobPosition.name"),
-                            Sort.Order.asc("name")
+                            Sort.Order.asc("nip")
                     )
             );
         }

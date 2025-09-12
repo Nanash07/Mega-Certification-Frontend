@@ -39,7 +39,7 @@ public class EmployeeImportService {
     @Transactional
     public EmployeeImportResponse confirm(MultipartFile file, User user) throws Exception {
         EmployeeImportResponse response = process(file, false, user);
-        response.setMessage("Import pegawai berhasil ✅. Jangan lupa refresh eligibility.");
+        response.setMessage("Import pegawai berhasil ✅ oleh " + user.getUsername());
         return response;
     }
 
@@ -73,10 +73,8 @@ public class EmployeeImportService {
         int processed = 0, created = 0, updated = 0, mutated = 0, resigned = 0, errors = 0;
         List<String> errorDetails = new ArrayList<>();
 
-        // Ambil semua NIP existing (buat deteksi resign)
         Set<String> existingNips = new HashSet<>(employeeRepo.findAll().stream()
                 .map(Employee::getNip).toList());
-
         Set<String> importedNips = new HashSet<>();
 
         try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
@@ -103,12 +101,10 @@ public class EmployeeImportService {
 
                     LocalDate skEffective = parseDateSafe(row.getCell(8), skEffectiveStr);
 
-                    // 🔹 Auto-create master data
                     Regional regional = resolveRegional(regionalName, dryRun);
                     Division division = resolveDivision(divisionName, dryRun);
                     Unit unit = resolveUnit(unitName, dryRun);
                     JobPosition jobPos = resolveJob(jobName, dryRun);
-
                     if (jobPos == null) continue;
 
                     Employee emp = employeeRepo.findByNip(nip).orElse(null);
@@ -143,13 +139,17 @@ public class EmployeeImportService {
 
                         boolean dataChanged = !Objects.equals(emp.getName(), name) ||
                                 !Objects.equals(emp.getEmail(), email) ||
-                                !Objects.equals(emp.getGender(), gender);
+                                !Objects.equals(emp.getGender(), gender) ||
+                                !Objects.equals(emp.getRegional(), regional) ||
+                                !Objects.equals(emp.getDivision(), division) ||
+                                !Objects.equals(emp.getUnit(), unit);
 
                         if (isMutasi) {
                             mutated++;
                             if (!dryRun) {
                                 JobPosition oldJob = emp.getJobPosition();
                                 emp.setJobPosition(jobPos);
+                                if (skEffective != null) emp.setJoinDate(skEffective);
                                 employeeRepo.save(emp);
 
                                 historyRepo.save(EmployeeHistory.builder()
@@ -166,6 +166,10 @@ public class EmployeeImportService {
                                 emp.setName(name);
                                 emp.setEmail(email);
                                 emp.setGender(gender);
+                                emp.setRegional(regional);
+                                emp.setDivision(division);
+                                emp.setUnit(unit);
+                                if (skEffective != null) emp.setJoinDate(skEffective);
                                 employeeRepo.save(emp);
 
                                 historyRepo.save(EmployeeHistory.builder()
@@ -177,18 +181,18 @@ public class EmployeeImportService {
                             }
                         }
                     }
-
                 } catch (Exception e) {
                     errors++;
                     errorDetails.add("Row " + i + ": " + e.getMessage());
                 }
             }
         }
+
         // 🔹 Deteksi Resign
         Set<String> resignedNips = new HashSet<>(existingNips);
         resignedNips.removeAll(importedNips);
-
         resigned = resignedNips.size();
+
         if (!dryRun) {
             for (String nip : resignedNips) {
                 employeeRepo.findByNip(nip).ifPresent(emp -> {
@@ -198,13 +202,13 @@ public class EmployeeImportService {
                     historyRepo.save(EmployeeHistory.builder()
                             .employee(emp)
                             .oldJobPosition(emp.getJobPosition())
+                            .effectiveDate(LocalDate.now())
                             .actionType("RESIGN")
                             .build());
                 });
             }
         }
 
-        // 🔹 Save Log kalau confirm
         if (!dryRun) {
             logRepo.save(EmployeeImportLog.builder()
                     .user(user)
@@ -231,7 +235,7 @@ public class EmployeeImportService {
                 .errorDetails(errorDetails)
                 .message(dryRun
                         ? "Dry run selesai ✅. Pegawai baru: " + created + ", resign: " + resigned
-                        : "Import selesai ✅. Pegawai baru: " + created + ", resign: " + resigned)
+                        : "Import selesai ✅ oleh " + user.getUsername() + ". Pegawai baru: " + created + ", resign: " + resigned)
                 .build();
     }
 
@@ -239,22 +243,18 @@ public class EmployeeImportService {
     public ResponseEntity<byte[]> downloadTemplate() {
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Employees");
-
             Row header = sheet.createRow(0);
             String[] cols = {
                     "Regional", "Division", "Unit", "JobTitle",
                     "NIP", "Name", "Gender", "Email", "SKEffective (yyyy-MM-dd)"
             };
-
             for (int i = 0; i < cols.length; i++) {
                 Cell cell = header.createCell(i);
                 cell.setCellValue(cols[i]);
                 sheet.autoSizeColumn(i);
             }
-
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
             workbook.write(bos);
-
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=employee_template.xlsx")
                     .contentType(MediaType.APPLICATION_OCTET_STREAM)
