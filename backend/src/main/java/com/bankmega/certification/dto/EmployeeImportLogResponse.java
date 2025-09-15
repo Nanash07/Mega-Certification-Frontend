@@ -3,7 +3,7 @@ package com.bankmega.certification.dto;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Data
 @Builder
@@ -18,5 +18,5 @@ public class EmployeeImportLogResponse {
     private int totalResigned;
     private int totalErrors;
     private boolean dryRun;
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 }

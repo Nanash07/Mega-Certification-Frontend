@@ -3,7 +3,7 @@ package com.bankmega.certification.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "exception_import_logs")
@@ -32,6 +32,6 @@ public class ExceptionImportLog {
     private boolean dryRun;
 
     @Builder.Default
-    @Column(updatable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
+    @Column(updatable = false, nullable = false)
+    private Instant createdAt = Instant.now();
 }

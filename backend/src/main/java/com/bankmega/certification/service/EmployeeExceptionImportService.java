@@ -45,7 +45,8 @@ public class EmployeeExceptionImportService {
     }
 
     public List<ExceptionImportLogResponse> getLogsByUser(Long userId) {
-        return logRepo.findByUserIdOrderByCreatedAtDesc(userId).stream().map(this::toResponse).toList();
+        return logRepo.findByUserIdOrderByCreatedAtDesc(userId)
+                .stream().map(this::toResponse).toList();
     }
 
     private ExceptionImportLogResponse toResponse(ExceptionImportLog log) {
@@ -59,7 +60,7 @@ public class EmployeeExceptionImportService {
                 .totalDeactivated(log.getTotalDeactivated())
                 .totalErrors(log.getTotalErrors())
                 .dryRun(log.isDryRun())
-                .createdAt(log.getCreatedAt())
+                .createdAt(log.getCreatedAt()) // ✅ udah Instant
                 .build();
     }
 
@@ -77,22 +78,34 @@ public class EmployeeExceptionImportService {
                 processed++;
 
                 try {
+                    // 🔹 Baca kolom sesuai template baru
                     String nip = getCellValue(row.getCell(0));
-                    String certCode = getCellValue(row.getCell(1));
-                    String levelStr = getCellValue(row.getCell(2));
-                    String subCode = getCellValue(row.getCell(3));
-                    String notes = getCellValue(row.getCell(4));
-                    String activeFlag = getCellValue(row.getCell(5));
+                    String name = getCellValue(row.getCell(1)); // hanya untuk info user
+                    String certCode = getCellValue(row.getCell(2));
+                    String levelStr = getCellValue(row.getCell(3));
+                    String subCode = getCellValue(row.getCell(4));
+                    String notes = getCellValue(row.getCell(5));
+                    String activeFlag = getCellValue(row.getCell(6));
 
                     if (nip == null || nip.isBlank() || certCode == null || certCode.isBlank()) {
-                        errorDetails.add("Row " + i + ": NIP / CertificationCode kosong");
+                        errorDetails.add("Row " + (i + 1) + ": NIP / CertificationCode kosong");
                         errors++;
                         continue;
                     }
 
+                    // 🔹 Cari employee by NIP
                     Employee emp = employeeRepo.findByNipAndDeletedAtIsNull(nip)
                             .orElseThrow(() -> new RuntimeException("Employee not found: " + nip));
 
+                    // (Opsional) validasi nama
+                    if (name != null && !name.isBlank() &&
+                            !emp.getName().equalsIgnoreCase(name.trim())) {
+                        errorDetails.add("Row " + (i + 1) + ": Nama tidak sesuai dengan NIP (" + nip + ")");
+                        errors++;
+                        continue;
+                    }
+
+                    // 🔹 Cari certification rule
                     Integer level = (levelStr != null && !levelStr.isBlank())
                             ? Integer.parseInt(levelStr)
                             : null;
@@ -109,6 +122,7 @@ public class EmployeeExceptionImportService {
                     boolean shouldActive = !"N".equalsIgnoreCase(activeFlag);
 
                     if (exception == null) {
+                        // 🔹 create baru
                         created++;
                         if (!dryRun) {
                             exception = EmployeeCertificationException.builder()
@@ -119,32 +133,43 @@ public class EmployeeExceptionImportService {
                                     .build();
                             exceptionRepo.save(exception);
                         }
-                    } else {
-                        if (!Objects.equals(exception.getNotes(), notes) ||
-                                !Objects.equals(exception.getIsActive(), shouldActive)) {
-                            updated++;
-                            if (!dryRun) {
-                                exception.setNotes(notes);
-                                exception.setIsActive(shouldActive);
-                                exceptionRepo.save(exception);
-                            }
-                        } else if (!shouldActive && Boolean.TRUE.equals(exception.getIsActive())) {
-                            deactivated++;
-                            if (!dryRun) {
-                                exception.setIsActive(false);
-                                exception.setDeletedAt(Instant.now());
-                                exceptionRepo.save(exception);
-                            }
+                    } else if (exception.getDeletedAt() != null) {
+                        // 🔹 reactivate kalau soft delete
+                        updated++;
+                        if (!dryRun) {
+                            exception.setDeletedAt(null);
+                            exception.setIsActive(shouldActive);
+                            exception.setNotes(notes);
+                            exception.setUpdatedAt(Instant.now());
+                            exceptionRepo.save(exception);
+                        }
+                    } else if (!Objects.equals(exception.getNotes(), notes) ||
+                            !Objects.equals(exception.getIsActive(), shouldActive)) {
+                        // 🔹 update notes / status
+                        updated++;
+                        if (!dryRun) {
+                            exception.setNotes(notes);
+                            exception.setIsActive(shouldActive);
+                            exception.setUpdatedAt(Instant.now());
+                            exceptionRepo.save(exception);
+                        }
+                    } else if (!shouldActive && Boolean.TRUE.equals(exception.getIsActive())) {
+                        // 🔹 deactivate
+                        deactivated++;
+                        if (!dryRun) {
+                            exception.setIsActive(false);
+                            exception.setDeletedAt(Instant.now());
+                            exceptionRepo.save(exception);
                         }
                     }
                 } catch (Exception e) {
                     errors++;
-                    errorDetails.add("Row " + i + ": " + e.getMessage());
+                    errorDetails.add("Row " + (i + 1) + ": " + e.getMessage());
                 }
             }
         }
 
-        // Save log kalau confirm
+        // 🔹 Save log kalau confirm
         if (!dryRun) {
             logRepo.save(ExceptionImportLog.builder()
                     .user(user)
@@ -155,6 +180,7 @@ public class EmployeeExceptionImportService {
                     .totalDeactivated(deactivated)
                     .totalErrors(errors)
                     .dryRun(false)
+                    .createdAt(Instant.now()) // ✅ aman, DTO udah Instant
                     .build());
         }
 
@@ -178,8 +204,9 @@ public class EmployeeExceptionImportService {
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Exceptions");
             Row header = sheet.createRow(0);
+            // 🔹 Tambahin kolom Nama setelah NIP
             String[] cols = {
-                    "NIP", "CertCode", "Level", "SubCode", "Notes", "ActiveFlag (Y/N)"
+                    "NIP", "Nama", "CertCode", "Level", "SubCode", "Notes", "ActiveFlag (Y/N)"
             };
             for (int i = 0; i < cols.length; i++) {
                 Cell cell = header.createCell(i);

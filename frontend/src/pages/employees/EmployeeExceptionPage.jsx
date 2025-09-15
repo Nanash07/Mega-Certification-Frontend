@@ -69,7 +69,7 @@ export default function EmployeeExceptionPage() {
       setTotalPages(res.totalPages || 1);
       setTotalElements(res.totalElements || 0);
     } catch {
-      toast.error("❌ Gagal memuat exceptions");
+      toast.error("Gagal memuat eligible manual");
     } finally {
       setLoading(false);
     }
@@ -90,28 +90,28 @@ export default function EmployeeExceptionPage() {
       setLevelOptions(levels.map((l) => ({ value: l.level, label: l.level })));
       setSubOptions(subs.map((s) => ({ value: s.code, label: s.code })));
     } catch (err) {
-      console.error("❌ loadFilters error:", err);
-      toast.error("❌ Gagal memuat filter");
+      console.error("loadFilters error:", err);
+      toast.error("Gagal memuat filter");
     }
   }
 
   async function onDelete(id) {
     try {
       await deleteException(id);
-      toast.success("✅ Exception dihapus");
+      toast.success("Eligible manual dihapus");
       load();
     } catch {
-      toast.error("❌ Gagal hapus exception");
+      toast.error("Gagal hapus eligible manual");
     }
   }
 
   async function onToggle(id) {
     try {
       await toggleException(id);
-      toast.success("✅ Status exception diubah");
+      toast.success("Status diubah");
       load();
     } catch {
-      toast.error("❌ Gagal toggle status");
+      toast.error("Gagal ubah status");
     }
   }
 
@@ -126,7 +126,7 @@ export default function EmployeeExceptionPage() {
       link.click();
       link.remove();
     } catch {
-      toast.error("❌ Gagal download template");
+      toast.error("Gagal download template");
     }
   }
 

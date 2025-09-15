@@ -1,21 +1,21 @@
-package com.bankmega.certification.dto;
+    package com.bankmega.certification.dto;
 
-import lombok.Builder;
-import lombok.Data;
+    import lombok.Builder;
+    import lombok.Data;
 
-import java.time.LocalDateTime;
+    import java.time.Instant;
 
-@Data
-@Builder
-public class ExceptionImportLogResponse {
-    private Long id;
-    private String username;
-    private String fileName;
-    private int totalProcessed;
-    private int totalCreated;
-    private int totalUpdated;
-    private int totalDeactivated;
-    private int totalErrors;
-    private boolean dryRun;
-    private LocalDateTime createdAt;
-}
+    @Data
+    @Builder
+    public class ExceptionImportLogResponse {
+        private Long id;
+        private String username;
+        private String fileName;
+        private int totalProcessed;
+        private int totalCreated;
+        private int totalUpdated;
+        private int totalDeactivated;
+        private int totalErrors;
+        private boolean dryRun;
+        private Instant createdAt;
+    }
