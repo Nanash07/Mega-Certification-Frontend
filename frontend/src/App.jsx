@@ -9,7 +9,7 @@ import MainLayout from "./layouts/MainLayout";
 import Dashboard from "./pages/dashboard/Dashboard";
 import EmployeeDataPage from "./pages/employees/EmployeeDataPage"; 
 import EmployeeEligibilityPage from "./pages/employees/EmployeeEligibilityPage";
-import EmployeeEligibilityManualPage from "./pages/employees/EmployeeEligibilityManualPage";
+import EmployeeExceptionPage from "./pages/employees/EmployeeExceptionPage";
 
 import RegionalPage from "./pages/organizations/RegionalPage";
 import DivisionPage from "./pages/organizations/DivisionPage";
@@ -90,7 +90,7 @@ export default function App() {
           element={
             <ProtectedRoute roles={["SUPERADMIN"]}>
               <MainLayout>
-                <EmployeeEligibilityManualPage />
+                <EmployeeExceptionPage />
               </MainLayout>
             </ProtectedRoute>
           }

@@ -186,10 +186,10 @@ export default function EmployeeEligibilityPage() {
                 setFilterStatus([]);
                 setSearch("");
                 setPage(1);
-                toast.success("Filter berhasil direset");
+                toast.success("Clear filter berhasil");
               }}
             >
-              Reset Filter
+              Clear Filter
             </button>
           </div>
         </div>

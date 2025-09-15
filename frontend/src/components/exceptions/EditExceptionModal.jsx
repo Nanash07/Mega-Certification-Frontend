@@ -1,39 +1,40 @@
 import { useEffect, useState } from "react";
 import Select from "react-select";
 import toast from "react-hot-toast";
-import { updateException } from "../../services/employeeCertificationExceptionService";
+import { updateException } from "../../services/employeeExceptionService";
 import { fetchEmployees } from "../../services/employeeService";
 import { fetchCertificationRules } from "../../services/certificationRuleService";
 
 export default function EditExceptionModal({ open, onClose, onSaved, initial }) {
   const [employees, setEmployees] = useState([]);
   const [rules, setRules] = useState([]);
-  const [form, setForm] = useState({ employeeId: null, certificationRuleId: null, reason: "" });
+  const [form, setForm] = useState({ employeeId: null, certificationRuleId: null, notes: "" });
 
   useEffect(() => {
     if (open && initial) {
-      fetchEmployees().then(setEmployees).catch(() => toast.error("Gagal load pegawai"));
-      fetchCertificationRules().then(setRules).catch(() => toast.error("Gagal load aturan"));
+      fetchEmployees().then(setEmployees).catch(() => toast.error("❌ Gagal load pegawai"));
+      fetchCertificationRules().then(setRules).catch(() => toast.error("❌ Gagal load aturan"));
 
       setForm({
         employeeId: initial.employeeId,
         certificationRuleId: initial.certificationRuleId,
-        reason: initial.reason || "",
+        notes: initial.notes || "",
       });
     }
   }, [open, initial]);
 
   async function onSubmit() {
-    if (!form.employeeId || !form.certificationRuleId) {
-      toast.error("Pilih pegawai & sertifikasi dulu");
+    if (!form.notes.trim()) {
+      toast.error("⚠️ Catatan tidak boleh kosong");
       return;
     }
     try {
-      await updateException(initial.id, form);
-      toast.success("Data diupdate");
+      await updateException(initial.id, { notes: form.notes });
+      toast.success("✅ Exception diupdate");
       onSaved();
+      onClose();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Gagal mengupdate data");
+      toast.error(err.response?.data?.message || "❌ Gagal mengupdate exception");
     }
   }
 
@@ -44,7 +45,7 @@ export default function EditExceptionModal({ open, onClose, onSaved, initial }) 
 
   const ruleOptions = rules.map((r) => ({
     value: r.id,
-    label: `${r.certificationCode} - ${r.levelName || "-"} - ${r.subFieldCode || "-"}`,
+    label: `${r.certificationCode} - ${r.certificationLevelName || "-"} - ${r.subFieldCode || "-"}`,
   }));
 
   return (
@@ -52,49 +53,40 @@ export default function EditExceptionModal({ open, onClose, onSaved, initial }) 
       <div className="modal-box max-w-2xl">
         <h3 className="font-bold text-lg mb-4">Edit Exception</h3>
 
+        {/* Employee (disabled saat edit) */}
         <div className="mb-3">
           <label className="label">Pegawai</label>
           <Select
+            isDisabled
             options={employeeOptions}
             value={employeeOptions.find((opt) => opt.value === form.employeeId) || null}
-            onChange={(opt) => setForm({ ...form, employeeId: opt?.value })}
-            placeholder="Pilih pegawai"
-            menuPortalTarget={document.body}
-            menuPosition="fixed"
-            styles={{ menuPortal: (base) => ({ ...base, zIndex: 9999 }) }}
           />
         </div>
 
+        {/* Certification Rule (disabled saat edit) */}
         <div className="mb-3">
           <label className="label">Sertifikasi</label>
           <Select
+            isDisabled
             options={ruleOptions}
             value={ruleOptions.find((opt) => opt.value === form.certificationRuleId) || null}
-            onChange={(opt) => setForm({ ...form, certificationRuleId: opt?.value })}
-            placeholder="Pilih aturan sertifikasi"
-            menuPortalTarget={document.body}
-            menuPosition="fixed"
-            styles={{ menuPortal: (base) => ({ ...base, zIndex: 9999 }) }}
           />
         </div>
 
+        {/* Notes */}
         <div className="mb-3">
-          <label className="label">Reason</label>
+          <label className="label">Catatan</label>
           <input
             type="text"
             className="input input-bordered w-full"
-            value={form.reason}
-            onChange={(e) => setForm({ ...form, reason: e.target.value })}
+            value={form.notes}
+            onChange={(e) => setForm({ ...form, notes: e.target.value })}
           />
         </div>
 
         <div className="modal-action">
-          <button className="btn" onClick={onClose}>
-            Batal
-          </button>
-          <button className="btn btn-primary" onClick={onSubmit}>
-            Simpan
-          </button>
+          <button className="btn" onClick={onClose}>Batal</button>
+          <button className="btn btn-primary" onClick={onSubmit}>Update</button>
         </div>
       </div>
       <form method="dialog" className="modal-backdrop">

@@ -7,20 +7,24 @@ import java.time.Instant;
 
 @Data
 @Builder
-public class EmployeeCertificationExceptionResponse {
+public class EmployeeExceptionResponse {
     private Long id;
     private Long employeeId;
-    private String nip;
     private String employeeName;
-    private String jobPositionTitle; // dari employee.jobPosition
+    private String nip;
+    private String jobPositionTitle;
 
     private Long certificationRuleId;
     private String certificationCode;
-    private String certificationLevel;
+    private String certificationName;
+    private String certificationLevelName;
+    private Integer certificationLevelLevel;
+    private String subFieldName;
     private String subFieldCode;
 
-    private String reason;
+    private Boolean isActive;
+    private String notes;
+
     private Instant createdAt;
     private Instant updatedAt;
-    private Instant deletedAt;
 }

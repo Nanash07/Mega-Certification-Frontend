@@ -24,7 +24,7 @@ export const MENU = [
     href: "/dashboard",
     key: "dashboard",
   },
-  {
+  /*{
     label: "Reminder / Notifikasi",
     icon: <Bell size={18} />,
     href: "/reminder",
@@ -35,7 +35,7 @@ export const MENU = [
     icon: <FileText size={18} />,
     href: "/reports",
     key: "reports",
-  },
+  },*/
 
   // 2. Data Pegawai & Organization
   {
@@ -46,7 +46,7 @@ export const MENU = [
       { label: "Data Pegawai", href: "/employee/data" },
       { label: "Eligibility", href: "/employee/eligibility" },
       { label: "Eligibility Manual", href: "/employee/exception" },
-      { label: "Tracking Sertifikasi", href: "/employee/certification" },
+      /*{ label: "Tracking Sertifikasi", href: "/employee/certification" },*/
     ],
   },
   {
@@ -87,7 +87,7 @@ export const MENU = [
   },
 
   // 5. Batch Sertifikasi
-  {
+  /*{
     label: "Batch Sertifikasi",
     icon: <ClipboardList size={18} />,
     key: "batch",
@@ -95,7 +95,7 @@ export const MENU = [
       { label: "Daftar Batch", href: "/batch" },
       { label: "Registrasi Pegawai", href: "/batch/registrasi" },
     ],
-  },
+  },*/
 
   // 6. User & Role Management
   {

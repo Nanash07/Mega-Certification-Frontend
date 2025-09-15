@@ -25,7 +25,7 @@ public class CertificationRuleService {
     private final SubFieldRepository subFieldRepo;
     private final RefreshmentTypeRepository refreshmentRepo;
 
-    // 🔹 Mapper
+    // 🔹 Mapper entity -> DTO
     private CertificationRuleResponse toResponse(CertificationRule entity) {
         return CertificationRuleResponse.builder()
                 .id(entity.getId())
@@ -52,13 +52,13 @@ public class CertificationRuleService {
     // 🔹 Paging + Filter + Search
     @Transactional(readOnly = true)
     public Page<CertificationRuleResponse> getPagedFiltered(
-                List<Long> certIds,
-                List<Long> levelIds,
-                List<Long> subIds,
-                String status,
-                String search,
-                Pageable pageable
-        ) {
+            List<Long> certIds,
+            List<Long> levelIds,
+            List<Long> subIds,
+            String status,
+            String search,
+            Pageable pageable
+    ) {
         Specification<CertificationRule> spec = CertificationRuleSpecification.notDeleted()
                 .and(CertificationRuleSpecification.byCertIds(certIds))
                 .and(CertificationRuleSpecification.byLevelIds(levelIds))
@@ -66,20 +66,35 @@ public class CertificationRuleService {
                 .and(CertificationRuleSpecification.byStatus(status))
                 .and(CertificationRuleSpecification.bySearch(search));
 
-        // ✅ Default sort by certification.code → certificationLevel.level → subField.code
-        Sort defaultSort = Sort.by("certification.code")
-                .ascending()
-                .and(Sort.by("certificationLevel.level").ascending())
-                .and(Sort.by("subField.code").ascending());
+        if (pageable.getSort().isUnsorted()) {
+            Sort defaultSort = Sort.by("certification.code")
+                    .ascending()
+                    .and(Sort.by("certificationLevel.level").ascending())
+                    .and(Sort.by("subField.code").ascending());
 
-        Pageable effectivePageable = PageRequest.of(
-                pageable.getPageNumber(),
-                pageable.getPageSize(),
-                defaultSort
-        );
-
-        return ruleRepo.findAll(spec, effectivePageable).map(this::toResponse);
+            pageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), defaultSort);
         }
+
+        return ruleRepo.findAll(spec, pageable).map(this::toResponse);
+    }
+
+    // 🔹 All active rules
+    @Transactional(readOnly = true)
+    public List<CertificationRuleResponse> getAllActive() {
+        return ruleRepo.findByIsActiveTrueAndDeletedAtIsNull()
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    // 🔹 All non-deleted rules
+    @Transactional(readOnly = true)
+    public List<CertificationRuleResponse> getAll() {
+        return ruleRepo.findByDeletedAtIsNull()
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
 
     // 🔹 Create
     @Transactional

@@ -100,7 +100,7 @@ export default function EmployeePage() {
     setStatuses([]);
     setSearch("");
     setPage(1);
-    toast.success("Filter berhasil direset");
+    toast.success("Clear filter berhasil");
   }
 
   // Confirm delete
@@ -174,7 +174,7 @@ export default function EmployeePage() {
           <Select isMulti options={statusOptions} value={statuses} onChange={setStatuses} placeholder="Filter Status" />
           <div>
             <button className="btn btn-accent btn-soft border-accent btn-sm w-full" onClick={resetFilter}>
-              Reset Filter
+              Clear Filter
             </button>
           </div>
         </div>

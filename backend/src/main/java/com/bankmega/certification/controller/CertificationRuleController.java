@@ -17,7 +17,7 @@ public class CertificationRuleController {
 
     private final CertificationRuleService service;
 
-    // 🔹 Paged + Filter + Search
+    // 🔹 Paging + Filter + Search
     @GetMapping("/paged")
     public ResponseEntity<Page<CertificationRuleResponse>> getPagedFiltered(
             @RequestParam(defaultValue = "0") int page,
@@ -33,22 +33,41 @@ public class CertificationRuleController {
                 service.getPagedFiltered(certIds, levelIds, subIds, status, search, pageable)
         );
     }
-    
+
+    // 🔹 All active rules (buat dropdown)
+    @GetMapping("/all")
+    public ResponseEntity<List<CertificationRuleResponse>> getAllActive() {
+        return ResponseEntity.ok(service.getAllActive());
+    }
+
+    // 🔹 All rules (non-deleted)
+    @GetMapping
+    public ResponseEntity<List<CertificationRuleResponse>> getAll() {
+        return ResponseEntity.ok(service.getAll());
+    }
+
+    // 🔹 Create
     @PostMapping
     public ResponseEntity<CertificationRuleResponse> create(@RequestBody CertificationRuleRequest req) {
         return ResponseEntity.ok(service.create(req));
     }
 
+    // 🔹 Update
     @PutMapping("/{id}")
-    public ResponseEntity<CertificationRuleResponse> update(@PathVariable Long id, @RequestBody CertificationRuleRequest req) {
+    public ResponseEntity<CertificationRuleResponse> update(
+            @PathVariable Long id,
+            @RequestBody CertificationRuleRequest req
+    ) {
         return ResponseEntity.ok(service.update(id, req));
     }
 
+    // 🔹 Toggle aktif / nonaktif
     @PutMapping("/{id}/toggle")
     public ResponseEntity<CertificationRuleResponse> toggle(@PathVariable Long id) {
         return ResponseEntity.ok(service.toggleStatus(id));
     }
 
+    // 🔹 Soft delete
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.softDelete(id);

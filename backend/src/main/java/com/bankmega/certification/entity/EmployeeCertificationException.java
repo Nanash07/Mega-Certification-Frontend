@@ -33,8 +33,12 @@ public class EmployeeCertificationException {
     @JoinColumn(name = "certification_rule_id", nullable = false)
     private CertificationRule certificationRule;
 
-    @Column(name = "reason")
-    private String reason; // alasan manual assignment
+    @Builder.Default
+    @Column(name = "is_active")
+    private Boolean isActive = true; // default aktif
+
+    @Column(name = "notes")
+    private String notes; // catatan PIC, opsional
 
     @CreatedDate
     @Column(name = "created_at", updatable = false)

@@ -25,6 +25,12 @@ public class EmployeeService {
     private final UnitRepository unitRepo;
     private final JobPositionRepository jobPositionRepo;
 
+    public List<EmployeeResponse> getAllActive() {
+        return repo.findByDeletedAtIsNull().stream()
+                .map(this::toResponse)
+                .toList();
+        }
+
     // 🔹 Paging + Filter + Search
     public Page<EmployeeResponse> search(
             String search,

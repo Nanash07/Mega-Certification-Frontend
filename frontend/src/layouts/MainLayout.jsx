@@ -18,7 +18,7 @@ export default function MainLayout({ children }) {
       </div>
 
       {/* toaster: cukup sekali di layout */}
-      <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
+      <Toaster position="top-right" toastOptions={{ duration: 2500 }} />
     </div>
   );
 }

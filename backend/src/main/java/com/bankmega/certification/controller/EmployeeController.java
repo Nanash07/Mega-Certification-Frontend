@@ -33,6 +33,12 @@ public class EmployeeController {
         );
     }
 
+    // 🔹 All (for dropdown)
+    @GetMapping("/all")
+    public ResponseEntity<List<EmployeeResponse>> getAllActive() {
+        return ResponseEntity.ok(service.getAllActive());
+    }
+
     // 🔹 Detail
     @GetMapping("/{id}")
     public ResponseEntity<EmployeeResponse> getById(@PathVariable Long id) {

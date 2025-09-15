@@ -96,7 +96,7 @@ export default function UserPage() {
     setRoleId("");
     setSearch("");
     setPage(1);
-    toast.success("Filter berhasil direset");
+    toast.success("Clear filter berhasil");
   }
 
   const startIdx = totalElements === 0 ? 0 : (page - 1) * rowsPerPage + 1;
@@ -151,7 +151,7 @@ export default function UserPage() {
               className="btn btn-accent btn-soft border-accent btn-sm w-full"
               onClick={resetFilter}
             >
-              Reset Filter
+              Clear Filter
             </button>
           </div>
         </div>

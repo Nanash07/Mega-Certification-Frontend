@@ -248,9 +248,9 @@ export default function JobCertificationMappingPage() {
                   <td>{r.subFieldCode || "-"}</td>
                   <td>
                     {r.isActive ? (
-                      <span className="badge badge-success border-success badge-sm">Aktif</span>
+                      <span className="badge badge-success border-success badge-sm text-slate-50">Aktif</span>
                     ) : (
-                      <span className="badge badge-warning border-warning badge-sm">Nonaktif</span>
+                      <span className="badge badge-secondary border-secondary badge-sm text-slate-50">Nonaktif</span>
                     )}
                   </td>
                   <td>
@@ -267,7 +267,7 @@ export default function JobCertificationMappingPage() {
                   <td className="space-x-1">
                     <button
                       className={`btn btn-xs ${
-                        r.isActive ? "btn-warning border-warning btn-soft" : "btn-success border-success btn-soft"
+                        r.isActive ? "btn-secondary border-secondary btn-soft" : "btn-success border-success btn-soft"
                       }`}
                       onClick={() => toggleJobCertificationMapping(r.id).then(load)}
                     >

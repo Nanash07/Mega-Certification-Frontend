@@ -5,13 +5,13 @@ const IMPORT_BASE = "/employees/import";
 
 // ================== EMPLOYEE CRUD ==================
 
-// 🔹 Ambil data pegawai dengan paging + filter + sorting
+// 🔹 Ambil data pegawai dengan paging + filter + sorting (buat tabel)
 export async function fetchEmployees(params) {
   try {
     const query = { ...params };
 
     // 👉 Convert sortField & sortDirection jadi format Spring: sort=field,direction
-    if (params.sortField) {
+    if (params?.sortField) {
       query.sort = `${params.sortField},${params.sortDirection || "asc"}`;
       delete query.sortField;
       delete query.sortDirection;
@@ -21,6 +21,31 @@ export async function fetchEmployees(params) {
     return data || { content: [], totalPages: 0, totalElements: 0 };
   } catch (err) {
     console.error("❌ fetchEmployees error:", err);
+    return { content: [], totalPages: 0, totalElements: 0 };
+  }
+}
+
+// 🔹 Ambil semua pegawai (non-paging, buat dropdown kecil)
+// ⚠️ Jangan dipakai kalau datanya ribuan (lemot)
+export async function fetchEmployeesAll() {
+  try {
+    const { data } = await api.get(`${EMPLOYEE_BASE}/all`);
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.error("❌ fetchEmployeesAll error:", err);
+    return [];
+  }
+}
+
+// 🔹 Search employees (paged, untuk async dropdown autocomplete)
+export async function searchEmployees({ search, page = 0, size = 20 }) {
+  try {
+    const { data } = await api.get(`${EMPLOYEE_BASE}/paged`, {
+      params: { search, page, size },
+    });
+    return data || { content: [], totalPages: 0, totalElements: 0 };
+  } catch (err) {
+    console.error("❌ searchEmployees error:", err);
     return { content: [], totalPages: 0, totalElements: 0 };
   }
 }
