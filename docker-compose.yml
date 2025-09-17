@@ -1,0 +1,43 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:17
+    container_name: megadb
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: certdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db_init:/docker-entrypoint-initdb.d
+      - db_data:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    container_name: megabackend
+    restart: always
+    depends_on:
+      - db
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/certdb
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      FILE_STORAGE_PATH: /storage
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./storage:/storage
+
+  frontend:
+    build: ./frontend
+    container_name: megafrontend
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  db_data:
