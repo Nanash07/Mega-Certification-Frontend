@@ -9,7 +9,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.Instant;
 
 @Entity
-@Table(name = "employee_certification_exceptions",
+@Table(name = "employee_eligibility_exceptions",
        uniqueConstraints = {
            @UniqueConstraint(columnNames = {"employee_id", "certification_rule_id"})
        })
@@ -19,7 +19,7 @@ import java.time.Instant;
 @AllArgsConstructor
 @Builder
 @EntityListeners(AuditingEntityListener.class)
-public class EmployeeCertificationException {
+public class EmployeeEligibilityException {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -28,7 +28,7 @@ public class EmployeeEligibilityResponse {
 
     private String status;   // NOT_YET_CERTIFIED, ACTIVE, DUE, EXPIRED
     private LocalDate dueDate;
-    private String source;   // MAPPING / EXCEPTION
+    private String source;   
 
     private Boolean isActive;
 

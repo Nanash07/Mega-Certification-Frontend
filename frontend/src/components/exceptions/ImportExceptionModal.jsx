@@ -31,16 +31,16 @@ export default function ImportExceptionModal({ open, onClose, onImported }) {
   // Dry Run
   async function handleDryRun() {
     if (!file) {
-      toast.error("⚠️ Pilih file Excel dulu");
+      toast.error("Pilih file Excel dulu");
       return;
     }
     setLoading(true);
     try {
       const res = await dryRunImportExceptions(file);
       setPreview(res);
-      toast.success("✅ File berhasil dicek");
+      toast.success("File berhasil dicek");
     } catch (err) {
-      toast.error(err?.response?.data?.message || "❌ Gagal memeriksa file");
+      toast.error(err?.response?.data?.message || "Gagal memeriksa file");
     } finally {
       setLoading(false);
     }
@@ -52,11 +52,11 @@ export default function ImportExceptionModal({ open, onClose, onImported }) {
     setLoading(true);
     try {
       const res = await confirmImportExceptions(file);
-      toast.success(res.message || "✅ Import berhasil");
+      toast.success(res.message || "Import berhasil");
       onImported?.();
       handleClose();
     } catch (err) {
-      toast.error(err?.response?.data?.message || "❌ Import gagal");
+      toast.error(err?.response?.data?.message || "Import gagal");
       setLoading(false);
     }
   }

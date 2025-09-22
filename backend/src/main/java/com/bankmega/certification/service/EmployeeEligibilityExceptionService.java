@@ -1,13 +1,13 @@
 package com.bankmega.certification.service;
 
-import com.bankmega.certification.dto.EmployeeExceptionResponse;
+import com.bankmega.certification.dto.EmployeeEligibilityExceptionResponse;
 import com.bankmega.certification.entity.CertificationRule;
 import com.bankmega.certification.entity.Employee;
-import com.bankmega.certification.entity.EmployeeCertificationException;
+import com.bankmega.certification.entity.EmployeeEligibilityException;
 import com.bankmega.certification.repository.CertificationRuleRepository;
-import com.bankmega.certification.repository.EmployeeCertificationExceptionRepository;
+import com.bankmega.certification.repository.EmployeeEligibilityExceptionRepository;
 import com.bankmega.certification.repository.EmployeeRepository;
-import com.bankmega.certification.specification.EmployeeExceptionSpecification;
+import com.bankmega.certification.specification.EmployeeEligibilityExceptionSpecification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
@@ -19,18 +19,18 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class EmployeeExceptionService {
+public class EmployeeEligibilityExceptionService {
 
-    private final EmployeeCertificationExceptionRepository exceptionRepo;
+    private final EmployeeEligibilityExceptionRepository exceptionRepo;
     private final EmployeeRepository employeeRepo;
     private final CertificationRuleRepository ruleRepo;
 
     // 🔹 Mapper Entity → DTO
-    private EmployeeExceptionResponse toResponse(EmployeeCertificationException e) {
+    private EmployeeEligibilityExceptionResponse toResponse(EmployeeEligibilityException e) {
         Employee emp = e.getEmployee();
         CertificationRule rule = e.getCertificationRule();
 
-        return EmployeeExceptionResponse.builder()
+        return EmployeeEligibilityExceptionResponse.builder()
                 .id(e.getId())
                 .employeeId(emp != null ? emp.getId() : null)
                 .employeeName(emp != null ? emp.getName() : null)
@@ -59,7 +59,7 @@ public class EmployeeExceptionService {
 
     // 🔹 Paging + Filter + Search
     @Transactional(readOnly = true)
-    public Page<EmployeeExceptionResponse> getPagedFiltered(
+    public Page<EmployeeEligibilityExceptionResponse> getPagedFiltered(
             List<Long> jobIds,
             List<String> certCodes,
             List<Integer> levels,
@@ -68,13 +68,13 @@ public class EmployeeExceptionService {
             String search,
             Pageable pageable
     ) {
-        Specification<EmployeeCertificationException> spec = EmployeeExceptionSpecification.notDeleted()
-                .and(EmployeeExceptionSpecification.byJobIds(jobIds))
-                .and(EmployeeExceptionSpecification.byCertCodes(certCodes))
-                .and(EmployeeExceptionSpecification.byLevels(levels))
-                .and(EmployeeExceptionSpecification.bySubCodes(subCodes))
-                .and(EmployeeExceptionSpecification.byStatus(status)) // ✅ filter status
-                .and(EmployeeExceptionSpecification.bySearch(search));
+        Specification<EmployeeEligibilityException> spec = EmployeeEligibilityExceptionSpecification.notDeleted()
+                .and(EmployeeEligibilityExceptionSpecification.byJobIds(jobIds))
+                .and(EmployeeEligibilityExceptionSpecification.byCertCodes(certCodes))
+                .and(EmployeeEligibilityExceptionSpecification.byLevels(levels))
+                .and(EmployeeEligibilityExceptionSpecification.bySubCodes(subCodes))
+                .and(EmployeeEligibilityExceptionSpecification.byStatus(status))
+                .and(EmployeeEligibilityExceptionSpecification.bySearch(search));
 
         if (pageable.getSort().isUnsorted()) {
             pageable = PageRequest.of(
@@ -94,7 +94,7 @@ public class EmployeeExceptionService {
 
     // 🔹 Get exceptions by employee
     @Transactional(readOnly = true)
-    public List<EmployeeExceptionResponse> getByEmployee(Long employeeId) {
+    public List<EmployeeEligibilityExceptionResponse> getByEmployee(Long employeeId) {
         return exceptionRepo.findByEmployeeIdAndDeletedAtIsNull(employeeId)
                 .stream()
                 .map(this::toResponse)
@@ -103,45 +103,49 @@ public class EmployeeExceptionService {
 
     // 🔹 Create new exception
     @Transactional
-public EmployeeExceptionResponse create(Long employeeId, Long certificationRuleId, String notes) {
-    Employee employee = employeeRepo.findById(employeeId)
-            .orElseThrow(() -> new RuntimeException("Employee not found"));
-    CertificationRule rule = ruleRepo.findById(certificationRuleId)
-            .orElseThrow(() -> new RuntimeException("Certification rule not found"));
+    public EmployeeEligibilityExceptionResponse create(Long employeeId, Long certificationRuleId, String notes) {
+        Employee employee = employeeRepo.findById(employeeId)
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
+        CertificationRule rule = ruleRepo.findById(certificationRuleId)
+                .orElseThrow(() -> new RuntimeException("Certification rule not found"));
 
-    // cek apakah pernah ada exception untuk kombinasi employee + rule
-    EmployeeCertificationException existing = exceptionRepo
-            .findFirstByEmployeeIdAndCertificationRuleId(employeeId, certificationRuleId)
-            .orElse(null);
+        // cek apakah pernah ada exception untuk kombinasi employee + rule (hanya aktif)
+        EmployeeEligibilityException existing = exceptionRepo
+                .findFirstByEmployeeIdAndCertificationRuleIdAndDeletedAtIsNull(employeeId, certificationRuleId)
+                .orElse(null);
 
-    if (existing != null) {
-        if (existing.getDeletedAt() != null) {
-            // 🔹 re-activate kalau pernah soft delete
-            existing.setDeletedAt(null);
-            existing.setIsActive(true);
-            existing.setNotes(notes);
-            existing.setUpdatedAt(Instant.now());
-            return toResponse(exceptionRepo.save(existing));
-        } else {
+        if (existing != null) {
             throw new RuntimeException("Exception already exists and active");
         }
+
+        // cek apakah ada yang pernah di-soft delete → re-activate
+        EmployeeEligibilityException softDeleted = exceptionRepo
+                .findFirstByEmployeeAndCertificationRuleAndDeletedAtIsNull(null, null) // dummy, nanti handle by custom query kalau perlu
+                .orElse(null);
+
+        if (softDeleted != null && softDeleted.getDeletedAt() != null) {
+            softDeleted.setDeletedAt(null);
+            softDeleted.setIsActive(true);
+            softDeleted.setNotes(notes);
+            softDeleted.setUpdatedAt(Instant.now());
+            return toResponse(exceptionRepo.save(softDeleted));
+        }
+
+        // kalau belum pernah ada → create baru
+        EmployeeEligibilityException exception = EmployeeEligibilityException.builder()
+                .employee(employee)
+                .certificationRule(rule)
+                .isActive(true)
+                .notes(notes)
+                .build();
+
+        return toResponse(exceptionRepo.save(exception));
     }
-
-    // kalau belum pernah ada → create baru
-    EmployeeCertificationException exception = EmployeeCertificationException.builder()
-            .employee(employee)
-            .certificationRule(rule)
-            .isActive(true)
-            .notes(notes)
-            .build();
-
-    return toResponse(exceptionRepo.save(exception));
-}
 
     // 🔹 Update notes
     @Transactional
-    public EmployeeExceptionResponse updateNotes(Long id, String notes) {
-        EmployeeCertificationException exception = exceptionRepo.findById(id)
+    public EmployeeEligibilityExceptionResponse updateNotes(Long id, String notes) {
+        EmployeeEligibilityException exception = exceptionRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Exception not found"));
         exception.setNotes(notes);
         return toResponse(exceptionRepo.save(exception));
@@ -149,8 +153,8 @@ public EmployeeExceptionResponse create(Long employeeId, Long certificationRuleI
 
     // 🔹 Toggle active/inactive
     @Transactional
-    public EmployeeExceptionResponse toggleActive(Long id) {
-        EmployeeCertificationException exception = exceptionRepo.findById(id)
+    public EmployeeEligibilityExceptionResponse toggleActive(Long id) {
+        EmployeeEligibilityException exception = exceptionRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Exception not found"));
         exception.setIsActive(!Boolean.TRUE.equals(exception.getIsActive()));
         exception.setUpdatedAt(Instant.now());
@@ -160,7 +164,7 @@ public EmployeeExceptionResponse create(Long employeeId, Long certificationRuleI
     // 🔹 Soft delete
     @Transactional
     public void softDelete(Long id) {
-        EmployeeCertificationException exception = exceptionRepo.findById(id)
+        EmployeeEligibilityException exception = exceptionRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Exception not found"));
         exception.setIsActive(false);
         exception.setDeletedAt(Instant.now());

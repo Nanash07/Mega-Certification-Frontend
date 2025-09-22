@@ -357,7 +357,10 @@ export default function EmployeeExceptionPage() {
         <ImportExceptionModal
           open={showImportModal}
           onClose={() => setShowImportModal(false)}
-          onSaved={load}
+          onImported={() => {
+            setPage(1);  // ✅ reset ke halaman pertama
+            load();      // ✅ refresh data
+          }}
         />
       )}
 

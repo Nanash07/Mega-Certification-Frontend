@@ -10,7 +10,7 @@ export default function CreateExceptionModal({ open, onClose, onSaved }) {
   const [rules, setRules] = useState([]);
   const [form, setForm] = useState({
     employeeId: null,
-    employeeLabel: "", // ✅ simpan label biar tampil di select
+    employeeLabel: "", // simpan label biar tampil di select
     certificationRuleId: null,
     notes: "",
   });
@@ -19,7 +19,7 @@ export default function CreateExceptionModal({ open, onClose, onSaved }) {
     if (open) {
       fetchCertificationRules()
         .then(setRules)
-        .catch(() => toast.error("❌ Gagal load aturan"));
+        .catch(() => toast.error("Gagal load aturan"));
 
       setForm({ employeeId: null, employeeLabel: "", certificationRuleId: null, notes: "" });
     }
@@ -27,7 +27,7 @@ export default function CreateExceptionModal({ open, onClose, onSaved }) {
 
   async function onSubmit() {
     if (!form.employeeId || !form.certificationRuleId) {
-      toast.error("⚠️ Pilih pegawai & sertifikasi dulu");
+      toast.error("Pilih pegawai & sertifikasi dulu");
       return;
     }
     try {
@@ -36,11 +36,11 @@ export default function CreateExceptionModal({ open, onClose, onSaved }) {
         certificationRuleId: form.certificationRuleId,
         notes: form.notes,
       });
-      toast.success("✅ Exception ditambahkan");
+      toast.success("Exception ditambahkan");
       onSaved?.(); 
       onClose();
     } catch (err) {
-      toast.error(err.response?.data?.message || "❌ Gagal menambah exception");
+      toast.error(err.response?.data?.message || "Gagal menambah exception");
     }
   }
 

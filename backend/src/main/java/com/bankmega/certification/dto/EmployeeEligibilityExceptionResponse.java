@@ -7,7 +7,7 @@ import java.time.Instant;
 
 @Data
 @Builder
-public class EmployeeExceptionResponse {
+public class EmployeeEligibilityExceptionResponse {
     private Long id;
     private Long employeeId;
     private String employeeName;

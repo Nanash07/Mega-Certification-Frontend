@@ -7,7 +7,7 @@
 
     @Data
     @Builder
-    public class ExceptionImportLogResponse {
+    public class EmployeeEligibilityExceptionImportLogResponse {
         private Long id;
         private String username;
         private String fileName;

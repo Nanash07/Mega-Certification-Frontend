@@ -7,7 +7,7 @@ import java.util.List;
 
 @Data
 @Builder
-public class ExceptionImportResponse {
+public class EmployeeEligibilityExceptionImportResponse {
     private String fileName;
     private boolean dryRun;
     private int processed;

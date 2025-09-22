@@ -1,9 +1,12 @@
 package com.bankmega.certification.specification;
 
 import com.bankmega.certification.entity.EmployeeEligibility;
+import com.bankmega.certification.entity.EligibilitySource;
+import com.bankmega.certification.entity.EligibilityStatus;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class EmployeeEligibilitySpecification {
 
@@ -22,7 +25,7 @@ public class EmployeeEligibilitySpecification {
                 ? cb.conjunction()
                 : root.get("certificationRule").get("certification").get("code").in(certCodes);
     }
-    
+
     public static Specification<EmployeeEligibility> byLevels(List<Integer> levels) {
         return (root, query, cb) -> (levels == null || levels.isEmpty())
                 ? cb.conjunction()
@@ -36,9 +39,25 @@ public class EmployeeEligibilitySpecification {
     }
 
     public static Specification<EmployeeEligibility> byStatuses(List<String> statuses) {
-        return (root, query, cb) -> (statuses == null || statuses.isEmpty())
-                ? cb.conjunction()
-                : root.get("status").as(String.class).in(statuses);
+        return (root, query, cb) -> {
+            if (statuses == null || statuses.isEmpty()) return cb.conjunction();
+            List<EligibilityStatus> parsed = statuses.stream()
+                    .map(String::toUpperCase)
+                    .map(EligibilityStatus::valueOf)
+                    .collect(Collectors.toList());
+            return root.get("status").in(parsed);
+        };
+    }
+
+    public static Specification<EmployeeEligibility> bySources(List<String> sources) {
+        return (root, query, cb) -> {
+            if (sources == null || sources.isEmpty()) return cb.conjunction();
+            List<EligibilitySource> parsed = sources.stream()
+                    .map(String::toUpperCase)
+                    .map(EligibilitySource::valueOf)
+                    .collect(Collectors.toList());
+            return root.get("source").in(parsed);
+        };
     }
 
     public static Specification<EmployeeEligibility> bySearch(String keyword) {
@@ -48,14 +67,21 @@ public class EmployeeEligibilitySpecification {
             }
             String likePattern = "%" + keyword.toLowerCase() + "%";
 
-            return cb.or(
-                    cb.like(cb.lower(root.get("employee").get("nip")), likePattern),
-                    cb.like(cb.lower(root.get("employee").get("name")), likePattern),
-                    cb.like(cb.lower(root.get("employee").get("jobPosition").get("name")), likePattern),
-                    cb.like(cb.lower(root.get("certificationRule").get("certification").get("code")), likePattern),
-                    cb.like(cb.lower(root.get("certificationRule").get("certification").get("name")), likePattern),
-                    cb.like(cb.lower(root.get("certificationRule").get("subField").get("name")), likePattern)
-            );
+            /* ---- LIKE untuk kolom-kolom teks ---- */
+            var likeNip       = cb.like(cb.lower(root.get("employee").get("nip")), likePattern);
+            var likeEmpName   = cb.like(cb.lower(root.get("employee").get("name")), likePattern);
+            var likeJobName   = cb.like(cb.lower(root.get("employee").get("jobPosition").get("name")), likePattern);
+            var likeCertCode  = cb.like(cb.lower(root.get("certificationRule").get("certification").get("code")), likePattern);
+            var likeCertName  = cb.like(cb.lower(root.get("certificationRule").get("certification").get("name")), likePattern);
+            var likeSubName   = cb.like(cb.lower(root.get("certificationRule").get("subField").get("name")), likePattern);
+
+            /* ---- LIKE untuk kolom ENUM (source) ---- */
+            var likeSource = cb.like(cb.lower(cb.lower(
+                    cb.function("str", String.class, root.get("source")))), likePattern);
+
+            return cb.or(likeNip, likeEmpName, likeJobName,
+                        likeCertCode, likeCertName, likeSubName,
+                        likeSource);
         };
     }
 }

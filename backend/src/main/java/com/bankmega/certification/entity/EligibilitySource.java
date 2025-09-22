@@ -1,6 +1,6 @@
 package com.bankmega.certification.entity;
 
 public enum EligibilitySource {
-    MAPPING,
-    MANUAL,
+    BY_JOB,
+    BY_NAME,
 }

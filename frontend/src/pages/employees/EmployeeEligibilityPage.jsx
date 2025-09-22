@@ -33,6 +33,7 @@ export default function EmployeeEligibilityPage() {
   const [filterLevel, setFilterLevel] = useState([]);
   const [filterSub, setFilterSub] = useState([]);
   const [filterStatus, setFilterStatus] = useState([]);
+  const [filterSource, setFilterSource] = useState([]); // 🔥 baru
   const [search, setSearch] = useState("");
 
   // 🔹 Load data
@@ -44,9 +45,10 @@ export default function EmployeeEligibilityPage() {
         size: rowsPerPage,
         jobIds: filterJob.map((f) => f.value),
         certCodes: filterCert.map((f) => f.value),
-        levels: filterLevel.map((f) => f.value),
+        levels: filterLevel.map((f) => String(f.value)), // backend expect string
         subCodes: filterSub.map((f) => f.value),
         statuses: filterStatus.map((f) => f.value),
+        sources: filterSource.map((f) => f.value), // 🔥 baru
         search: search || null,
       };
 
@@ -55,7 +57,7 @@ export default function EmployeeEligibilityPage() {
       setTotalPages(res.totalPages || 1);
       setTotalElements(res.totalElements || 0);
     } catch {
-      toast.error("❌ Gagal memuat eligibility");
+      toast.error("Gagal memuat eligibility");
     } finally {
       setLoading(false);
     }
@@ -65,10 +67,10 @@ export default function EmployeeEligibilityPage() {
     setRefreshing(true);
     try {
       await refreshEmployeeEligibility();
-      toast.success("✅ Eligibility berhasil di-refresh");
+      toast.success("Eligibility berhasil di-refresh");
       load();
     } catch {
-      toast.error("❌ Gagal refresh eligibility");
+      toast.error("Gagal refresh eligibility");
     } finally {
       setRefreshing(false);
     }
@@ -89,14 +91,24 @@ export default function EmployeeEligibilityPage() {
       setLevelOptions(levels.map((l) => ({ value: l.level, label: l.level })));
       setSubOptions(subs.map((s) => ({ value: s.code, label: s.code })));
     } catch (err) {
-      console.error("❌ loadFilters error:", err);
-      toast.error("❌ Gagal memuat filter");
+      console.error("loadFilters error:", err);
+      toast.error("Gagal memuat filter");
     }
   }
 
   useEffect(() => {
     load();
-  }, [page, rowsPerPage, filterJob, filterCert, filterLevel, filterSub, filterStatus, search]);
+  }, [
+    page,
+    rowsPerPage,
+    filterJob,
+    filterCert,
+    filterLevel,
+    filterSub,
+    filterStatus,
+    filterSource, // 🔥 ikut trigger reload
+    search,
+  ]);
 
   useEffect(() => {
     loadFilters();
@@ -124,17 +136,20 @@ export default function EmployeeEligibilityPage() {
           </div>
           <div className="col-span-1 lg:col-span-2">
             <button
-              className={`btn btn-primary btn-sm w-full ${refreshing ? "loading" : ""}`}
+              className="btn btn-primary btn-sm w-full flex items-center justify-center gap-2"
               onClick={onRefresh}
               disabled={refreshing}
             >
+              {refreshing && (
+                <span className="loading loading-spinner loading-xs" />
+              )}
               {refreshing ? "Refreshing..." : "Refresh Eligibility"}
             </button>
           </div>
         </div>
 
         {/* Row 2: Filters */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3 text-xs">
           <Select
             isMulti
             options={jobOptions}
@@ -175,6 +190,17 @@ export default function EmployeeEligibilityPage() {
             onChange={setFilterStatus}
             placeholder="Filter Status"
           />
+          {/* 🔥 New Source Filter */}
+          <Select
+            isMulti
+            options={[
+              { value: "BY_JOB", label: "By Job" },
+              { value: "BY_NAME", label: "By Name" },
+            ]}
+            value={filterSource}
+            onChange={setFilterSource}
+            placeholder="Filter Sumber"
+          />
           <div>
             <button
               className="btn btn-accent btn-soft border-accent btn-sm w-full"
@@ -184,6 +210,7 @@ export default function EmployeeEligibilityPage() {
                 setFilterLevel([]);
                 setFilterSub([]);
                 setFilterStatus([]);
+                setFilterSource([]); // reset juga
                 setSearch("");
                 setPage(1);
                 toast.success("Clear filter berhasil");
@@ -210,18 +237,19 @@ export default function EmployeeEligibilityPage() {
               <th>SK Efektif</th>
               <th>Status</th>
               <th>Due Date</th>
+              <th>Sumber</th>
             </tr>
           </thead>
           <tbody className="text-xs">
             {loading ? (
               <tr>
-                <td colSpan={9} className="text-center py-10">
+                <td colSpan={11} className="text-center py-10">
                   <span className="loading loading-dots loading-md" />
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={9} className="text-center text-gray-400 py-10">
+                <td colSpan={11} className="text-center text-gray-400 py-10">
                   Tidak ada data
                 </td>
               </tr>
@@ -235,9 +263,18 @@ export default function EmployeeEligibilityPage() {
                   <td>{r.certificationCode}</td>
                   <td>{r.certificationLevelName || "-"}</td>
                   <td>{r.subFieldCode || "-"}</td>
-                  <td>{r.joinDate ? new Date(r.joinDate).toLocaleDateString() : "-"}</td>
+                  <td>
+                    {r.joinDate
+                      ? new Date(r.joinDate).toLocaleDateString()
+                      : "-"}
+                  </td>
                   <td>{r.status}</td>
-                  <td>{r.dueDate || "-"}</td>
+                  <td>
+                    {r.dueDate
+                      ? new Date(r.dueDate).toLocaleDateString()
+                      : "-"}
+                  </td>
+                  <td>{r.source === "BY_JOB" ? "By Job" : "By Name"}</td>
                 </tr>
               ))
             )}

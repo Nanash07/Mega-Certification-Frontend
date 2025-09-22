@@ -58,7 +58,7 @@ export default function EmployeePage() {
         setUnitOptions(u.map((x) => ({ value: x.id, label: x.name })));
         setJobOptions(j.map((x) => ({ value: x.id, label: x.name })));
       })
-      .catch(() => toast.error("❌ Gagal memuat filter master data"));
+      .catch(() => toast.error("Gagal memuat filter master data"));
   }, []);
 
   // Load employees
@@ -81,7 +81,7 @@ export default function EmployeePage() {
       setTotalPages(res.totalPages || 1);
       setTotalElements(res.totalElements || 0);
     } catch {
-      toast.error("❌ Gagal memuat data pegawai");
+      toast.error("Gagal memuat data pegawai");
     } finally {
       setLoading(false);
     }
@@ -107,10 +107,10 @@ export default function EmployeePage() {
   async function handleDelete(id) {
     try {
       await deleteEmployee(id);
-      toast.success("✅ Pegawai berhasil dihapus");
+      toast.success("Pegawai berhasil dihapus");
       load();
     } catch (err) {
-      toast.error(err?.response?.data?.message || "❌ Gagal menghapus pegawai");
+      toast.error(err?.response?.data?.message || "Gagal menghapus pegawai");
     } finally {
       setConfirm({ open: false, id: null });
     }
@@ -128,9 +128,9 @@ export default function EmployeePage() {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-      toast.success("✅ Template berhasil diunduh");
+      toast.success("Template berhasil diunduh");
     } catch {
-      toast.error("❌ Gagal download template");
+      toast.error("Gagal download template");
     }
   }
 

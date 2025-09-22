@@ -10,7 +10,7 @@ export async function fetchExceptions(params = {}) {
     const { data } = await api.get(BASE_URL, { params });
     return data || { content: [], totalPages: 0, totalElements: 0 };
   } catch (err) {
-    console.error("❌ fetchExceptions error:", err);
+    console.error("fetchExceptions error:", err);
     return { content: [], totalPages: 0, totalElements: 0 };
   }
 }
@@ -23,7 +23,7 @@ export async function createException(payload) {
     const { data } = await api.post(BASE_URL, payload);
     return data;
   } catch (err) {
-    console.error("❌ createException error:", err);
+    console.error("createException error:", err);
     throw err;
   }
 }
@@ -36,7 +36,7 @@ export async function updateException(id, notes) {
     });
     return data;
   } catch (err) {
-    console.error("❌ updateException error:", err);
+    console.error("updateException error:", err);
     throw err;
   }
 }
@@ -47,7 +47,7 @@ export async function toggleException(id) {
     const { data } = await api.put(`${BASE_URL}/${id}/toggle`);
     return data;
   } catch (err) {
-    console.error("❌ toggleException error:", err);
+    console.error("toggleException error:", err);
     throw err;
   }
 }
@@ -58,7 +58,7 @@ export async function deleteException(id) {
     await api.delete(`${BASE_URL}/${id}`);
     return true;
   } catch (err) {
-    console.error("❌ deleteException error:", err);
+    console.error("deleteException error:", err);
     throw err;
   }
 }
@@ -77,7 +77,7 @@ export async function dryRunImportExceptions(file) {
     });
     return data;
   } catch (err) {
-    console.error("❌ dryRunImportExceptions error:", err);
+    console.error("dryRunImportExceptions error:", err);
     throw err;
   }
 }
@@ -92,7 +92,7 @@ export async function confirmImportExceptions(file) {
     });
     return data;
   } catch (err) {
-    console.error("❌ confirmImportExceptions error:", err);
+    console.error("confirmImportExceptions error:", err);
     throw err;
   }
 }
@@ -105,7 +105,7 @@ export async function downloadExceptionTemplate() {
     });
     return res.data;
   } catch (err) {
-    console.error("❌ downloadExceptionTemplate error:", err);
+    console.error("downloadExceptionTemplate error:", err);
     throw err;
   }
 }

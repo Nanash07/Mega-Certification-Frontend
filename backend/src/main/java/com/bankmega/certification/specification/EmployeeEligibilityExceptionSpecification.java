@@ -1,41 +1,41 @@
 package com.bankmega.certification.specification;
 
-import com.bankmega.certification.entity.EmployeeCertificationException;
+import com.bankmega.certification.entity.EmployeeEligibilityException;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.util.List;
 
-public class EmployeeExceptionSpecification {
+public class EmployeeEligibilityExceptionSpecification {
 
-    public static Specification<EmployeeCertificationException> notDeleted() {
+    public static Specification<EmployeeEligibilityException> notDeleted() {
         return (root, query, cb) -> cb.isNull(root.get("deletedAt"));
     }
 
-    public static Specification<EmployeeCertificationException> byJobIds(List<Long> jobIds) {
+    public static Specification<EmployeeEligibilityException> byJobIds(List<Long> jobIds) {
         return (root, query, cb) -> (jobIds == null || jobIds.isEmpty())
                 ? cb.conjunction()
                 : root.get("employee").get("jobPosition").get("id").in(jobIds);
     }
 
-    public static Specification<EmployeeCertificationException> byCertCodes(List<String> certCodes) {
+    public static Specification<EmployeeEligibilityException> byCertCodes(List<String> certCodes) {
         return (root, query, cb) -> (certCodes == null || certCodes.isEmpty())
                 ? cb.conjunction()
                 : root.get("certificationRule").get("certification").get("code").in(certCodes);
     }
 
-    public static Specification<EmployeeCertificationException> byLevels(List<Integer> levels) {
+    public static Specification<EmployeeEligibilityException> byLevels(List<Integer> levels) {
         return (root, query, cb) -> (levels == null || levels.isEmpty())
                 ? cb.conjunction()
                 : root.get("certificationRule").get("certificationLevel").get("level").in(levels);
     }
 
-    public static Specification<EmployeeCertificationException> bySubCodes(List<String> subCodes) {
+    public static Specification<EmployeeEligibilityException> bySubCodes(List<String> subCodes) {
         return (root, query, cb) -> (subCodes == null || subCodes.isEmpty())
                 ? cb.conjunction()
                 : root.get("certificationRule").get("subField").get("code").in(subCodes);
     }
     
-    public static Specification<EmployeeCertificationException> byStatus(String status) {
+    public static Specification<EmployeeEligibilityException> byStatus(String status) {
         return (root, query, cb) -> {
             if (status == null || status.isBlank()) {
                 return cb.conjunction();
@@ -52,7 +52,7 @@ public class EmployeeExceptionSpecification {
         };
     }
 
-    public static Specification<EmployeeCertificationException> bySearch(String keyword) {
+    public static Specification<EmployeeEligibilityException> bySearch(String keyword) {
         return (root, query, cb) -> {
             if (keyword == null || keyword.trim().isEmpty()) {
                 return cb.conjunction();

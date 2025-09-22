@@ -18,6 +18,7 @@ import java.io.ByteArrayOutputStream;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +31,12 @@ public class EmployeeImportService {
     private final EmployeeRepository employeeRepo;
     private final EmployeeHistoryRepository historyRepo;
     private final EmployeeImportLogRepository logRepo;
+
+    // ==== Cache Master Data ====
+    private final Map<String, Regional> regionalCache = new HashMap<>();
+    private final Map<String, Division> divisionCache = new HashMap<>();
+    private final Map<String, Unit> unitCache = new HashMap<>();
+    private final Map<String, JobPosition> jobCache = new HashMap<>();
 
     // ===================== DRYRUN & CONFIRM =====================
     public EmployeeImportResponse dryRun(MultipartFile file, User user) throws Exception {
@@ -73,8 +80,12 @@ public class EmployeeImportService {
         int processed = 0, created = 0, updated = 0, mutated = 0, resigned = 0, errors = 0;
         List<String> errorDetails = new ArrayList<>();
 
-        Set<String> existingNips = new HashSet<>(employeeRepo.findAll().stream()
-                .map(Employee::getNip).toList());
+        // Ambil semua NIP existing (lebih efisien pakai projection)
+        Set<String> existingNips = employeeRepo.findAllBy()
+                .stream()
+                .map(EmployeeRepository.NipOnly::getNip)
+                .collect(Collectors.toSet());
+
         Set<String> importedNips = new HashSet<>();
 
         try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
@@ -137,12 +148,7 @@ public class EmployeeImportService {
                         boolean isMutasi = emp.getJobPosition() != null &&
                                 !emp.getJobPosition().getId().equals(jobPos.getId());
 
-                        boolean dataChanged = !Objects.equals(emp.getName(), name) ||
-                                !Objects.equals(emp.getEmail(), email) ||
-                                !Objects.equals(emp.getGender(), gender) ||
-                                !Objects.equals(emp.getRegional(), regional) ||
-                                !Objects.equals(emp.getDivision(), division) ||
-                                !Objects.equals(emp.getUnit(), unit);
+                        boolean dataChanged = hasChanged(emp, name, email, gender, regional, division, unit);
 
                         if (isMutasi) {
                             mutated++;
@@ -188,25 +194,27 @@ public class EmployeeImportService {
             }
         }
 
-        // 🔹 Deteksi Resign
+        // 🔹 Deteksi Resign (lebih efisien dengan batch)
         Set<String> resignedNips = new HashSet<>(existingNips);
         resignedNips.removeAll(importedNips);
         resigned = resignedNips.size();
 
-        if (!dryRun) {
-            for (String nip : resignedNips) {
-                employeeRepo.findByNip(nip).ifPresent(emp -> {
-                    emp.setStatus("RESIGN");
-                    employeeRepo.save(emp);
+        if (!dryRun && !resignedNips.isEmpty()) {
+            List<Employee> resignedEmployees = employeeRepo.findByNipIn(resignedNips);
 
-                    historyRepo.save(EmployeeHistory.builder()
+            resignedEmployees.forEach(emp -> emp.setStatus("RESIGN"));
+            employeeRepo.saveAll(resignedEmployees);
+
+            List<EmployeeHistory> histories = resignedEmployees.stream()
+                    .map(emp -> EmployeeHistory.builder()
                             .employee(emp)
                             .oldJobPosition(emp.getJobPosition())
                             .effectiveDate(LocalDate.now())
                             .actionType("RESIGN")
-                            .build());
-                });
-            }
+                            .build())
+                    .toList();
+
+            historyRepo.saveAll(histories);
         }
 
         if (!dryRun) {
@@ -284,31 +292,53 @@ public class EmployeeImportService {
         return null;
     }
 
+    private boolean hasChanged(Employee emp, String name, String email, String gender,
+                               Regional regional, Division division, Unit unit) {
+        return !Objects.equals(emp.getName(), name) ||
+               !Objects.equals(emp.getEmail(), email) ||
+               !Objects.equals(emp.getGender(), gender) ||
+               !Objects.equals(emp.getRegional(), regional) ||
+               !Objects.equals(emp.getDivision(), division) ||
+               !Objects.equals(emp.getUnit(), unit);
+    }
+
     private Regional resolveRegional(String name, boolean dryRun) {
         if (name == null || name.isBlank()) return null;
-        return regionalRepo.findByNameIgnoreCase(name).orElseGet(() ->
+        return regionalCache.computeIfAbsent(name.toLowerCase(), key ->
+            regionalRepo.findByNameIgnoreCase(name).orElseGet(() ->
                 dryRun ? Regional.builder().id(-1L).name(name).build()
-                       : regionalRepo.save(Regional.builder().name(name).build()));
+                       : regionalRepo.save(Regional.builder().name(name).build())
+            )
+        );
     }
 
     private Division resolveDivision(String name, boolean dryRun) {
         if (name == null || name.isBlank()) return null;
-        return divisionRepo.findByNameIgnoreCase(name).orElseGet(() ->
+        return divisionCache.computeIfAbsent(name.toLowerCase(), key ->
+            divisionRepo.findByNameIgnoreCase(name).orElseGet(() ->
                 dryRun ? Division.builder().id(-1L).name(name).build()
-                       : divisionRepo.save(Division.builder().name(name).build()));
+                       : divisionRepo.save(Division.builder().name(name).build())
+            )
+        );
     }
 
     private Unit resolveUnit(String name, boolean dryRun) {
         if (name == null || name.isBlank()) return null;
-        return unitRepo.findByNameIgnoreCase(name).orElseGet(() ->
+        return unitCache.computeIfAbsent(name.toLowerCase(), key ->
+            unitRepo.findByNameIgnoreCase(name).orElseGet(() ->
                 dryRun ? Unit.builder().id(-1L).name(name).build()
-                       : unitRepo.save(Unit.builder().name(name).build()));
+                       : unitRepo.save(Unit.builder().name(name).build())
+            )
+        );
     }
 
     private JobPosition resolveJob(String name, boolean dryRun) {
         if (name == null || name.isBlank()) return null;
-        return jobPositionRepo.findByNameIgnoreCase(name).orElseGet(() ->
+        return jobCache.computeIfAbsent(name.toLowerCase(), key ->
+            jobPositionRepo.findByNameIgnoreCase(name).orElseGet(() ->
                 dryRun ? JobPosition.builder().id(-1L).name(name).build()
-                       : jobPositionRepo.save(JobPosition.builder().name(name).build()));
+                       : jobPositionRepo.save(JobPosition.builder().name(name).build())
+            )
+        );
     }
 }

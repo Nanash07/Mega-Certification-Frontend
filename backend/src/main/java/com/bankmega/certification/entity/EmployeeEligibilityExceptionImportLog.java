@@ -11,7 +11,7 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ExceptionImportLog {
+public class EmployeeEligibilityExceptionImportLog {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
