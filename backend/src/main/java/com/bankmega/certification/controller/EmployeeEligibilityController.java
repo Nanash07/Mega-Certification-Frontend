@@ -19,6 +19,7 @@ public class EmployeeEligibilityController {
 
     @GetMapping("/paged")
     public Page<EmployeeEligibilityResponse> getPagedFiltered(
+            @RequestParam(required = false) List<Long> employeeIds,
             @RequestParam(required = false) List<Long> jobIds,
             @RequestParam(required = false) List<String> certCodes,
             @RequestParam(required = false) List<Integer> levels,
@@ -28,7 +29,7 @@ public class EmployeeEligibilityController {
             @RequestParam(required = false) String search,
             Pageable pageable
     ) {
-        return service.getPagedFiltered(jobIds, certCodes, levels, subCodes, statuses, sources, search, pageable);
+        return service.getPagedFiltered(employeeIds, jobIds, certCodes, levels, subCodes, statuses, sources, search, pageable);
     }
 
     @PostMapping("/refresh")

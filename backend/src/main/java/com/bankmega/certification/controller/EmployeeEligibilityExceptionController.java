@@ -33,6 +33,7 @@ public class EmployeeEligibilityExceptionController {
 
     @GetMapping
     public ResponseEntity<Page<EmployeeEligibilityExceptionResponse>> getPaged(
+            @RequestParam(required = false) List<Long> employeeIds,
             @RequestParam(required = false) List<Long> jobIds,
             @RequestParam(required = false) List<String> certCodes,
             @RequestParam(required = false) List<Integer> levels,
@@ -42,7 +43,7 @@ public class EmployeeEligibilityExceptionController {
             Pageable pageable
     ) {
         return ResponseEntity.ok(
-                exceptionService.getPagedFiltered(jobIds, certCodes, levels, subCodes, status, search, pageable)
+                exceptionService.getPagedFiltered(employeeIds, jobIds, certCodes, levels, subCodes, status, search, pageable)
         );
     }
 

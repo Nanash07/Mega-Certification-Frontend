@@ -1,7 +1,5 @@
 package com.bankmega.certification.repository;
 
-import com.bankmega.certification.entity.CertificationRule;
-import com.bankmega.certification.entity.Employee;
 import com.bankmega.certification.entity.EmployeeEligibilityException;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -12,23 +10,20 @@ import java.util.Optional;
 public interface EmployeeEligibilityExceptionRepository
         extends JpaRepository<EmployeeEligibilityException, Long>, JpaSpecificationExecutor<EmployeeEligibilityException> {
 
-    // ✅ Cari exception aktif (deletedAt null) by employee + rule
-    Optional<EmployeeEligibilityException> findFirstByEmployeeAndCertificationRuleAndDeletedAtIsNull(
-            Employee employee, CertificationRule rule);
-
-    // ✅ Cari exception aktif by employeeId + ruleId
+    // 🔹 Cari exception aktif (deletedAt null) by employee + rule
     Optional<EmployeeEligibilityException> findFirstByEmployeeIdAndCertificationRuleIdAndDeletedAtIsNull(
             Long employeeId, Long certificationRuleId);
 
-    // ✅ Semua exception aktif milik employee tertentu
+    // 🔹 Cari semua exception aktif milik employee
     List<EmployeeEligibilityException> findByEmployeeIdAndDeletedAtIsNull(Long employeeId);
 
-    // ✅ Semua exception aktif milik rule tertentu
+    // 🔹 Cari semua exception aktif milik rule tertentu
     List<EmployeeEligibilityException> findByCertificationRuleIdAndDeletedAtIsNull(Long ruleId);
 
-    // ✅ Semua exception aktif
+    // 🔹 Cari semua exception aktif
     List<EmployeeEligibilityException> findByDeletedAtIsNull();
 
-    // termasuk yang sudah soft delete
-    Optional<EmployeeEligibilityException> findFirstByEmployeeIdAndCertificationRuleId(Long employeeId, Long certificationRuleId);
+    // 🔹 Cari kombinasi employee + rule (termasuk yang soft delete)
+    Optional<EmployeeEligibilityException> findFirstByEmployeeIdAndCertificationRuleId(
+            Long employeeId, Long certificationRuleId);
 }

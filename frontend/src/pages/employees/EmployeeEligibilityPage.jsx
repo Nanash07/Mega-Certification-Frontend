@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import Select from "react-select";
+import AsyncSelect from "react-select/async";
 import Pagination from "../../components/common/Pagination";
 import {
   fetchEmployeeEligibilityPaged,
@@ -10,6 +11,7 @@ import { fetchAllJobPositions } from "../../services/jobPositionService";
 import { fetchCertifications } from "../../services/certificationService";
 import { fetchCertificationLevels } from "../../services/certificationLevelService";
 import { fetchSubFields } from "../../services/subFieldService";
+import { searchEmployees } from "../../services/employeeService";
 
 export default function EmployeeEligibilityPage() {
   const [rows, setRows] = useState([]);
@@ -28,13 +30,13 @@ export default function EmployeeEligibilityPage() {
   const [levelOptions, setLevelOptions] = useState([]);
   const [subOptions, setSubOptions] = useState([]);
 
+  const [filterEmployee, setFilterEmployee] = useState(null);
   const [filterJob, setFilterJob] = useState([]);
   const [filterCert, setFilterCert] = useState([]);
   const [filterLevel, setFilterLevel] = useState([]);
   const [filterSub, setFilterSub] = useState([]);
   const [filterStatus, setFilterStatus] = useState([]);
-  const [filterSource, setFilterSource] = useState([]); // 🔥 baru
-  const [search, setSearch] = useState("");
+  const [filterSource, setFilterSource] = useState([]);
 
   // 🔹 Load data
   async function load() {
@@ -43,13 +45,13 @@ export default function EmployeeEligibilityPage() {
       const params = {
         page: page - 1,
         size: rowsPerPage,
+        employeeIds: filterEmployee ? [filterEmployee.value] : [],
         jobIds: filterJob.map((f) => f.value),
         certCodes: filterCert.map((f) => f.value),
-        levels: filterLevel.map((f) => String(f.value)), // backend expect string
+        levels: filterLevel.map((f) => f.value),
         subCodes: filterSub.map((f) => f.value),
         statuses: filterStatus.map((f) => f.value),
-        sources: filterSource.map((f) => f.value), // 🔥 baru
-        search: search || null,
+        sources: filterSource.map((f) => f.value),
       };
 
       const res = await fetchEmployeeEligibilityPaged(params);
@@ -96,18 +98,35 @@ export default function EmployeeEligibilityPage() {
     }
   }
 
+  // 🔹 Async search employees (limit 20)
+  const loadEmployees = async (inputValue) => {
+    try {
+      const res = await searchEmployees({
+        search: inputValue,
+        page: 0,
+        size: 20,
+      });
+      return res.content.map((e) => ({
+        value: e.id,
+        label: `${e.nip} - ${e.name}`,
+      }));
+    } catch {
+      return [];
+    }
+  };
+
   useEffect(() => {
     load();
   }, [
     page,
     rowsPerPage,
+    filterEmployee,
     filterJob,
     filterCert,
     filterLevel,
     filterSub,
     filterStatus,
-    filterSource, // 🔥 ikut trigger reload
-    search,
+    filterSource,
   ]);
 
   useEffect(() => {
@@ -120,21 +139,8 @@ export default function EmployeeEligibilityPage() {
     <div>
       {/* Toolbar */}
       <div className="mb-4 space-y-3">
-        {/* Row 1: Search + Refresh */}
         <div className="grid grid-cols-1 lg:grid-cols-6 gap-3">
-          <div className="col-span-1 lg:col-span-4">
-            <input
-              type="text"
-              className="input input-sm input-bordered w-full"
-              placeholder="🔍 Cari NIP, nama, atau jabatan..."
-              value={search}
-              onChange={(e) => {
-                setPage(1);
-                setSearch(e.target.value);
-              }}
-            />
-          </div>
-          <div className="col-span-1 lg:col-span-2">
+          <div className="col-span-2">
             <button
               className="btn btn-primary btn-sm w-full flex items-center justify-center gap-2"
               onClick={onRefresh}
@@ -146,10 +152,37 @@ export default function EmployeeEligibilityPage() {
               {refreshing ? "Refreshing..." : "Refresh Eligibility"}
             </button>
           </div>
+          <div className="col-span-1">
+            <button
+              className="btn btn-sm btn-accent w-full"
+              onClick={() => {
+                setFilterEmployee(null);
+                setFilterJob([]);
+                setFilterCert([]);
+                setFilterLevel([]);
+                setFilterSub([]);
+                setFilterStatus([]);
+                setFilterSource([]);
+                setPage(1);
+                toast.success("Clear filter berhasil");
+              }}
+            >
+              Clear Filter
+            </button>
+          </div>
         </div>
 
-        {/* Row 2: Filters */}
+        {/* Filters */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3 text-xs">
+          <AsyncSelect
+            cacheOptions
+            defaultOptions
+            loadOptions={loadEmployees}
+            value={filterEmployee}
+            onChange={setFilterEmployee}
+            placeholder="Filter Pegawai"
+            isClearable
+          />
           <Select
             isMulti
             options={jobOptions}
@@ -190,7 +223,6 @@ export default function EmployeeEligibilityPage() {
             onChange={setFilterStatus}
             placeholder="Filter Status"
           />
-          {/* 🔥 New Source Filter */}
           <Select
             isMulti
             options={[
@@ -201,24 +233,6 @@ export default function EmployeeEligibilityPage() {
             onChange={setFilterSource}
             placeholder="Filter Sumber"
           />
-          <div>
-            <button
-              className="btn btn-accent btn-soft border-accent btn-sm w-full"
-              onClick={() => {
-                setFilterJob([]);
-                setFilterCert([]);
-                setFilterLevel([]);
-                setFilterSub([]);
-                setFilterStatus([]);
-                setFilterSource([]); // reset juga
-                setSearch("");
-                setPage(1);
-                toast.success("Clear filter berhasil");
-              }}
-            >
-              Clear Filter
-            </button>
-          </div>
         </div>
       </div>
 
@@ -265,13 +279,13 @@ export default function EmployeeEligibilityPage() {
                   <td>{r.subFieldCode || "-"}</td>
                   <td>
                     {r.joinDate
-                      ? new Date(r.joinDate).toLocaleDateString()
+                      ? new Date(r.joinDate).toLocaleDateString("id-ID")
                       : "-"}
                   </td>
                   <td>{r.status}</td>
                   <td>
                     {r.dueDate
-                      ? new Date(r.dueDate).toLocaleDateString()
+                      ? new Date(r.dueDate).toLocaleDateString("id-ID")
                       : "-"}
                   </td>
                   <td>{r.source === "BY_JOB" ? "By Job" : "By Name"}</td>

@@ -10,6 +10,7 @@ import Dashboard from "./pages/dashboard/Dashboard";
 import EmployeeDataPage from "./pages/employees/EmployeeDataPage"; 
 import EmployeeEligibilityPage from "./pages/employees/EmployeeEligibilityPage";
 import EmployeeExceptionPage from "./pages/employees/EmployeeExceptionPage";
+import EmployeeCertificationPage from "./pages/employees/EmployeeCertificationPage";
 
 import RegionalPage from "./pages/organizations/RegionalPage";
 import DivisionPage from "./pages/organizations/DivisionPage";
@@ -96,18 +97,16 @@ export default function App() {
           }
         />
 
-        {/*
         <Route
-          path="/employee/exception"
+          path="/employee/certification"
           element={
-            <ProtectedRoute roles={["SUPERADMIN"]}>
+            <ProtectedRoute roles={["SUPERADMIN", "PIC"]}>
               <MainLayout>
-                <EmployeeCertificationExceptionPage />
+                <EmployeeCertificationPage />
               </MainLayout>
             </ProtectedRoute>
           }
         />
-        */}
 
         {/* Organization */}
         <Route

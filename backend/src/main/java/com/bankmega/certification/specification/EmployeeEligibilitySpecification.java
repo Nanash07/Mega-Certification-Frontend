@@ -14,6 +14,13 @@ public class EmployeeEligibilitySpecification {
         return (root, query, cb) -> cb.isNull(root.get("deletedAt"));
     }
 
+    public static Specification<EmployeeEligibility> byEmployeeIds(List<Long> employeeIds) {
+        return (root, query, cb) ->
+                (employeeIds == null || employeeIds.isEmpty())
+                        ? cb.conjunction()
+                        : root.get("employee").get("id").in(employeeIds);
+    }
+
     public static Specification<EmployeeEligibility> byJobIds(List<Long> jobIds) {
         return (root, query, cb) -> (jobIds == null || jobIds.isEmpty())
                 ? cb.conjunction()
@@ -67,21 +74,21 @@ public class EmployeeEligibilitySpecification {
             }
             String likePattern = "%" + keyword.toLowerCase() + "%";
 
-            /* ---- LIKE untuk kolom-kolom teks ---- */
-            var likeNip       = cb.like(cb.lower(root.get("employee").get("nip")), likePattern);
-            var likeEmpName   = cb.like(cb.lower(root.get("employee").get("name")), likePattern);
-            var likeJobName   = cb.like(cb.lower(root.get("employee").get("jobPosition").get("name")), likePattern);
-            var likeCertCode  = cb.like(cb.lower(root.get("certificationRule").get("certification").get("code")), likePattern);
-            var likeCertName  = cb.like(cb.lower(root.get("certificationRule").get("certification").get("name")), likePattern);
-            var likeSubName   = cb.like(cb.lower(root.get("certificationRule").get("subField").get("name")), likePattern);
+            var likeNip      = cb.like(cb.lower(root.get("employee").get("nip")), likePattern);
+            var likeEmpName  = cb.like(cb.lower(root.get("employee").get("name")), likePattern);
+            var likeJobName  = cb.like(cb.lower(root.get("employee").get("jobPosition").get("name")), likePattern);
+            var likeCertCode = cb.like(cb.lower(root.get("certificationRule").get("certification").get("code")), likePattern);
+            var likeCertName = cb.like(cb.lower(root.get("certificationRule").get("certification").get("name")), likePattern);
+            var likeSubName  = cb.like(cb.lower(root.get("certificationRule").get("subField").get("name")), likePattern);
 
-            /* ---- LIKE untuk kolom ENUM (source) ---- */
-            var likeSource = cb.like(cb.lower(cb.lower(
-                    cb.function("str", String.class, root.get("source")))), likePattern);
+            var likeSource = cb.like(
+                    cb.lower(cb.function("str", String.class, root.get("source"))),
+                    likePattern
+            );
 
             return cb.or(likeNip, likeEmpName, likeJobName,
-                        likeCertCode, likeCertName, likeSubName,
-                        likeSource);
+                    likeCertCode, likeCertName, likeSubName,
+                    likeSource);
         };
     }
 }

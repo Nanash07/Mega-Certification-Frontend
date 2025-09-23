@@ -1,24 +1,19 @@
-import { useEffect, useState } from "react"; 
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import Select from "react-select";
 import AsyncSelect from "react-select/async";
 import Pagination from "../../components/common/Pagination";
 import {
-  fetchExceptions,
-  deleteException,
-  toggleException,
-  downloadExceptionTemplate,
-} from "../../services/employeeExceptionService";
-import { fetchAllJobPositions } from "../../services/jobPositionService";
-import { fetchCertifications } from "../../services/certificationService";
-import { fetchCertificationLevels } from "../../services/certificationLevelService";
-import { fetchSubFields } from "../../services/subFieldService";
+  fetchCertifications,
+  deleteCertification,
+} from "../../services/employeeCertificationService";
 import { searchEmployees } from "../../services/employeeService";
-import CreateExceptionModal from "../../components/exceptions/CreateExceptionModal";
-import EditExceptionModal from "../../components/exceptions/EditExceptionModal";
-import ImportExceptionModal from "../../components/exceptions/ImportExceptionModal";
+import { fetchCertificationRules } from "../../services/certificationRuleService";
+import { fetchInstitutions } from "../../services/institutionService";
+import CreateCertificationModal from "../../components/employee-certifications/CreateCertificationModal";
+import EditCertificationModal from "../../components/employee-certifications/EditCertificationModal";
 
-export default function EmployeeExceptionPage() {
+export default function EmployeeCertificationPage() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -29,27 +24,22 @@ export default function EmployeeExceptionPage() {
   const [totalElements, setTotalElements] = useState(0);
 
   // Filters
-  const [jobOptions, setJobOptions] = useState([]);
-  const [certOptions, setCertOptions] = useState([]);
+  const [institutionOptions, setInstitutionOptions] = useState([]);
+  const [certCodeOptions, setCertCodeOptions] = useState([]);
   const [levelOptions, setLevelOptions] = useState([]);
-  const [subOptions, setSubOptions] = useState([]);
+  const [subFieldOptions, setSubFieldOptions] = useState([]);
 
   const [filterEmployee, setFilterEmployee] = useState(null);
-  const [filterJob, setFilterJob] = useState([]);
-  const [filterCert, setFilterCert] = useState([]);
+  const [filterCertCode, setFilterCertCode] = useState([]);
   const [filterLevel, setFilterLevel] = useState([]);
-  const [filterSub, setFilterSub] = useState([]);
+  const [filterSubField, setFilterSubField] = useState([]);
+  const [filterInstitution, setFilterInstitution] = useState([]);
   const [filterStatus, setFilterStatus] = useState([]);
 
   // Modal
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
-
-  // Delete confirm modal state
+  const [editData, setEditData] = useState(null);
   const [confirm, setConfirm] = useState({ open: false, id: null });
-
-  const [selectedRow, setSelectedRow] = useState(null);
 
   // Load data
   async function load() {
@@ -59,19 +49,19 @@ export default function EmployeeExceptionPage() {
         page: page - 1,
         size: rowsPerPage,
         employeeIds: filterEmployee ? [filterEmployee.value] : [],
-        jobIds: filterJob.map((f) => f.value),
-        certCodes: filterCert.map((f) => f.value),
+        certCodes: filterCertCode.map((f) => f.value),
         levels: filterLevel.map((f) => f.value),
-        subCodes: filterSub.map((f) => f.value),
+        subCodes: filterSubField.map((f) => f.value),
+        institutionIds: filterInstitution.map((f) => f.value),
         statuses: filterStatus.map((f) => f.value),
       };
 
-      const res = await fetchExceptions(params);
+      const res = await fetchCertifications(params);
       setRows(res.content || []);
       setTotalPages(res.totalPages || 1);
       setTotalElements(res.totalElements || 0);
     } catch {
-      toast.error("Gagal memuat eligible manual");
+      toast.error("Gagal memuat sertifikasi pegawai");
     } finally {
       setLoading(false);
     }
@@ -80,19 +70,35 @@ export default function EmployeeExceptionPage() {
   // Load filter options
   async function loadFilters() {
     try {
-      const [jobs, certs, levels, subs] = await Promise.all([
-        fetchAllJobPositions(),
-        fetchCertifications(),
-        fetchCertificationLevels(),
-        fetchSubFields(),
+      const [rules, insts] = await Promise.all([
+        fetchCertificationRules(),
+        fetchInstitutions(),
       ]);
 
-      setJobOptions(jobs.map((j) => ({ value: j.id, label: j.name })));
-      setCertOptions(certs.map((c) => ({ value: c.code, label: c.code })));
-      setLevelOptions(levels.map((l) => ({ value: l.level, label: l.level })));
-      setSubOptions(subs.map((s) => ({ value: s.code, label: s.code })));
-    } catch (err) {
-      console.error("loadFilters error:", err);
+      // bikin unik + sort ASC
+      const certCodeOpts = [
+        ...new Set(rules.map((r) => r.certificationCode).filter(Boolean)),
+      ]
+        .sort()
+        .map((code) => ({ value: code, label: code }));
+
+      const levelOpts = [
+        ...new Set(rules.map((r) => r.certificationLevelLevel).filter(Boolean)),
+      ]
+        .sort((a, b) => a - b)
+        .map((lvl) => ({ value: lvl, label: lvl }));
+
+      const subFieldOpts = [
+        ...new Set(rules.map((r) => r.subFieldCode).filter(Boolean)),
+      ]
+        .sort()
+        .map((sf) => ({ value: sf, label: sf }));
+
+      setCertCodeOptions(certCodeOpts);
+      setLevelOptions(levelOpts);
+      setSubFieldOptions(subFieldOpts);
+      setInstitutionOptions(insts.map((i) => ({ value: i.id, label: i.name })));
+    } catch {
       toast.error("Gagal memuat filter");
     }
   }
@@ -100,11 +106,7 @@ export default function EmployeeExceptionPage() {
   // Async search employees
   const loadEmployees = async (inputValue) => {
     try {
-      const res = await searchEmployees({
-        search: inputValue,
-        page: 0,
-        size: 20,
-      });
+      const res = await searchEmployees({ search: inputValue, page: 0, size: 20 });
       return res.content.map((e) => ({
         value: e.id,
         label: `${e.nip} - ${e.name}`,
@@ -116,36 +118,11 @@ export default function EmployeeExceptionPage() {
 
   async function onDelete(id) {
     try {
-      await deleteException(id);
-      toast.success("Eligible manual dihapus");
+      await deleteCertification(id);
+      toast.success("Sertifikasi pegawai dihapus");
       load();
     } catch {
-      toast.error("Gagal hapus eligible manual");
-    }
-  }
-
-  async function onToggle(id) {
-    try {
-      await toggleException(id);
-      toast.success("Status diubah");
-      load();
-    } catch {
-      toast.error("Gagal ubah status");
-    }
-  }
-
-  async function handleDownloadTemplate() {
-    try {
-      const blob = await downloadExceptionTemplate();
-      const url = window.URL.createObjectURL(new Blob([blob]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", "exception_template.xlsx");
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch {
-      toast.error("Gagal download template");
+      toast.error("Gagal hapus sertifikasi");
     }
   }
 
@@ -155,10 +132,10 @@ export default function EmployeeExceptionPage() {
     page,
     rowsPerPage,
     filterEmployee,
-    filterJob,
-    filterCert,
+    filterCertCode,
     filterLevel,
-    filterSub,
+    filterSubField,
+    filterInstitution,
     filterStatus,
   ]);
 
@@ -173,41 +150,27 @@ export default function EmployeeExceptionPage() {
       {/* Toolbar */}
       <div className="mb-4 space-y-3">
         <div className="grid grid-cols-1 lg:grid-cols-6 gap-3">
+          
+          <div className="col-span-4"></div>
+          
           <div className="col-span-1">
             <button
               className="btn btn-sm btn-secondary w-full"
               onClick={() => setShowCreateModal(true)}
             >
-              Tambah Eligible Manual
+              Tambah Sertifikat
             </button>
           </div>
 
           <div className="col-span-1">
             <button
-              className="btn btn-sm btn-primary w-full"
-              onClick={handleDownloadTemplate}
-            >
-              Download Template
-            </button>
-          </div>
-
-          <div className="col-span-1">
-            <button
-              className="btn btn-sm btn-success w-full"
-              onClick={() => setShowImportModal(true)}
-            >
-              Import Eligible Manual
-            </button>
-          </div>
-          <div className="col-span-1">
-            <button
-              className="btn btn-accent btn-soft border-accent btn-sm w-full"
+              className="btn btn-sm btn-accent w-full"
               onClick={() => {
                 setFilterEmployee(null);
-                setFilterJob([]);
-                setFilterCert([]);
+                setFilterCertCode([]);
                 setFilterLevel([]);
-                setFilterSub([]);
+                setFilterSubField([]);
+                setFilterInstitution([]);
                 setFilterStatus([]);
                 setPage(1);
                 toast.success("Clear filter berhasil");
@@ -217,7 +180,6 @@ export default function EmployeeExceptionPage() {
             </button>
           </div>
         </div>
-        
 
         {/* Filters */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 text-xs">
@@ -230,39 +192,46 @@ export default function EmployeeExceptionPage() {
             placeholder="Filter Pegawai"
             isClearable
           />
+
           <Select
             isMulti
-            options={jobOptions}
-            value={filterJob}
-            onChange={setFilterJob}
-            placeholder="Filter Jabatan"
+            options={certCodeOptions}
+            value={filterCertCode}
+            onChange={setFilterCertCode}
+            placeholder="Filter Cert Code"
           />
-          <Select
-            isMulti
-            options={certOptions}
-            value={filterCert}
-            onChange={setFilterCert}
-            placeholder="Filter Sertifikasi"
-          />
+
           <Select
             isMulti
             options={levelOptions}
             value={filterLevel}
             onChange={setFilterLevel}
-            placeholder="Filter Level"
+            placeholder="Filter Jenjang"
           />
+
           <Select
             isMulti
-            options={subOptions}
-            value={filterSub}
-            onChange={setFilterSub}
-            placeholder="Filter Sub Bidang"
+            options={subFieldOptions}
+            value={filterSubField}
+            onChange={setFilterSubField}
+            placeholder="Filter Sub Field"
           />
+
+          <Select
+            isMulti
+            options={institutionOptions}
+            value={filterInstitution}
+            onChange={setFilterInstitution}
+            placeholder="Filter Lembaga"
+          />
+
           <Select
             isMulti
             options={[
-              { value: "AKTIF", label: "Aktif" },
-              { value: "NONAKTIF", label: "Nonaktif" },
+              { value: "ACTIVE", label: "Active" },
+              { value: "DUE", label: "Due" },
+              { value: "EXPIRED", label: "Expired" },
+              { value: "REVOKED", label: "Revoked" },
             ]}
             value={filterStatus}
             onChange={setFilterStatus}
@@ -280,11 +249,15 @@ export default function EmployeeExceptionPage() {
               <th>NIP</th>
               <th>Nama Pegawai</th>
               <th>Jabatan</th>
-              <th>Kode Sertifikasi</th>
-              <th>Level</th>
+              <th>Cert Code</th>
+              <th>Jenjang</th>
               <th>Sub Bidang</th>
-              <th>Notes</th>
+              <th>No Sertifikat</th>
+              <th>Tanggal Sertifikat</th>
+              <th>Tanggal Kadaluarsa</th>
+              <th>Reminder</th>
               <th>Status</th>
+              <th>Lembaga</th>
               <th>Updated At</th>
               <th>Aksi</th>
             </tr>
@@ -292,13 +265,13 @@ export default function EmployeeExceptionPage() {
           <tbody className="text-xs">
             {loading ? (
               <tr>
-                <td colSpan={11} className="text-center py-10">
+                <td colSpan={15} className="text-center py-10">
                   <span className="loading loading-dots loading-md" />
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={11} className="text-center text-gray-400 py-10">
+                <td colSpan={15} className="text-center text-gray-400 py-10">
                   Tidak ada data
                 </td>
               </tr>
@@ -308,22 +281,56 @@ export default function EmployeeExceptionPage() {
                   <td>{startIdx + idx}</td>
                   <td>{r.nip}</td>
                   <td>{r.employeeName}</td>
-                  <td>{r.jobPositionTitle}</td>
+                  <td>{r.jobPositionTitle || "-"}</td>
                   <td>{r.certificationCode}</td>
-                  <td>{r.certificationLevelName || "-"}</td>
+                  <td>{r.certificationLevelLevel || "-"}</td>
                   <td>{r.subFieldCode || "-"}</td>
-                  <td>{r.notes || "-"}</td>
+                  <td>{r.certNumber || "-"}</td>
                   <td>
-                    {r.isActive ? (
-                      <span className="badge badge-success border-success badge-sm text-slate-50">
-                        Aktif
-                      </span>
-                    ) : (
-                      <span className="badge badge-secondary border-secondary badge-sm text-slate-50">
-                        Nonaktif
-                      </span>
-                    )}
+                    {r.certDate
+                      ? new Date(r.certDate).toLocaleDateString("id-ID", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })
+                      : "-"}
                   </td>
+                  <td>
+                    {r.validUntil
+                      ? new Date(r.validUntil).toLocaleDateString("id-ID", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })
+                      : "-"}
+                  </td>
+                  <td>
+                    {r.reminderDate
+                      ? new Date(r.reminderDate).toLocaleDateString("id-ID", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })
+                      : "-"}
+                  </td>
+                  <td>
+                    <span
+                      className={`badge badge-sm text-white ${
+                        r.status === "ACTIVE"
+                          ? "badge-success"
+                          : r.status === "DUE"
+                          ? "badge-warning"
+                          : r.status === "EXPIRED"
+                          ? "badge-error"
+                          : r.status === "REVOKED"
+                          ? "badge-ghost"
+                          : "badge-neutral"
+                      }`}
+                    >
+                      {r.status}
+                    </span>
+                  </td>
+                  <td>{r.institutionName || "-"}</td>
                   <td>
                     {r.updatedAt
                       ? new Date(r.updatedAt).toLocaleDateString("id-ID", {
@@ -337,21 +344,8 @@ export default function EmployeeExceptionPage() {
                   </td>
                   <td className="space-x-1">
                     <button
-                      className={`btn btn-xs ${
-                        r.isActive
-                          ? "btn-secondary border-secondary btn-soft"
-                          : "btn-success border-success btn-soft"
-                      }`}
-                      onClick={() => onToggle(r.id)}
-                    >
-                      {r.isActive ? "Nonaktifkan" : "Aktifkan"}
-                    </button>
-                    <button
                       className="btn btn-xs border-warning btn-soft btn-warning"
-                      onClick={() => {
-                        setSelectedRow(r);
-                        setShowEditModal(true);
-                      }}
+                      onClick={() => setEditData(r)}
                     >
                       Edit
                     </button>
@@ -384,29 +378,23 @@ export default function EmployeeExceptionPage() {
 
       {/* Modal Create */}
       {showCreateModal && (
-        <CreateExceptionModal
+        <CreateCertificationModal
           open={showCreateModal}
           onClose={() => setShowCreateModal(false)}
-          onSaved={load}
+          onSaved={() => {
+            setPage(1);
+            load();
+          }}
         />
       )}
 
       {/* Modal Edit */}
-      {showEditModal && selectedRow && (
-        <EditExceptionModal
-          open={showEditModal}
-          onClose={() => setShowEditModal(false)}
-          onSaved={load}
-          initial={selectedRow}
-        />
-      )}
-
-      {/* Modal Import */}
-      {showImportModal && (
-        <ImportExceptionModal
-          open={showImportModal}
-          onClose={() => setShowImportModal(false)}
-          onImported={() => {
+      {editData && (
+        <EditCertificationModal
+          open={!!editData}
+          data={editData}
+          onClose={() => setEditData(null)}
+          onSaved={() => {
             setPage(1);
             load();
           }}
@@ -417,8 +405,8 @@ export default function EmployeeExceptionPage() {
       {confirm.open && (
         <dialog className="modal" open={confirm.open}>
           <div className="modal-box">
-            <h3 className="font-bold text-lg">Hapus Exception?</h3>
-            <p className="py-2">Exception ini akan dihapus dari sistem.</p>
+            <h3 className="font-bold text-lg">Hapus Sertifikasi Pegawai?</h3>
+            <p className="py-2">Data sertifikat ini akan dihapus dari sistem.</p>
             <div className="modal-action">
               <button
                 className="btn"

@@ -42,11 +42,7 @@ public class EmployeeEligibilityService {
         }
         if (e.getDueDate() != null) {
             long days = ChronoUnit.DAYS.between(LocalDate.now(), e.getDueDate());
-            if (days >= 0) {
-                sisaWaktu = days + " hari";
-            } else {
-                sisaWaktu = "Kadaluarsa";
-            }
+            sisaWaktu = days >= 0 ? days + " hari" : "Kadaluarsa";
         }
 
         return EmployeeEligibilityResponse.builder()
@@ -98,6 +94,7 @@ public class EmployeeEligibilityService {
     // ===================== PAGING + FILTER =====================
     @Transactional(readOnly = true)
     public Page<EmployeeEligibilityResponse> getPagedFiltered(
+            List<Long> employeeIds,
             List<Long> jobIds,
             List<String> certCodes,
             List<Integer> levels,
@@ -108,6 +105,7 @@ public class EmployeeEligibilityService {
             Pageable pageable
     ) {
         Specification<EmployeeEligibility> spec = EmployeeEligibilitySpecification.notDeleted()
+                .and(EmployeeEligibilitySpecification.byEmployeeIds(employeeIds))
                 .and(EmployeeEligibilitySpecification.byJobIds(jobIds))
                 .and(EmployeeEligibilitySpecification.byCertCodes(certCodes))
                 .and(EmployeeEligibilitySpecification.byLevels(levels))
@@ -164,8 +162,12 @@ public class EmployeeEligibilityService {
         eligibility.setEmployee(employee);
         eligibility.setCertificationRule(rule);
         eligibility.setSource(EligibilitySource.BY_NAME);
-        eligibility.setStatus(EligibilityStatus.BELUM_SERTIFIKASI);
         eligibility.setIsActive(true);
+        eligibility.setDeletedAt(null);
+
+        if (eligibility.getStatus() == null) {
+            eligibility.setStatus(EligibilityStatus.BELUM_SERTIFIKASI);
+        }
 
         eligibility.setValidityMonths(rule.getValidityMonths());
         eligibility.setReminderMonths(rule.getReminderMonths());
@@ -180,6 +182,11 @@ public class EmployeeEligibilityService {
         EmployeeEligibility eligibility = eligibilityRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Eligibility not found"));
         eligibility.setIsActive(!eligibility.getIsActive());
+        if (eligibility.getIsActive()) {
+            eligibility.setDeletedAt(null);
+        } else {
+            eligibility.setDeletedAt(Instant.now());
+        }
         return toResponse(eligibilityRepo.save(eligibility));
     }
 
@@ -273,6 +280,7 @@ public class EmployeeEligibilityService {
 
         List<EmployeeEligibility> toSave = new ArrayList<>();
 
+        // nonaktifkan eligibility yang tidak relevan lagi
         for (EmployeeEligibility ee : existingElig) {
             String key = ee.getCertificationRule().getId() + "-" + ee.getSource().name();
             if (!activeKeys.contains(key)) {
@@ -282,6 +290,7 @@ public class EmployeeEligibilityService {
             }
         }
 
+        // eligibility dari job mapping
         for (CertificationRule rule : mappingRules) {
             EmployeeEligibility eligibility = eligibilityRepo
                     .findByEmployeeAndCertificationRuleAndSource(employee, rule, EligibilitySource.BY_JOB)
@@ -290,8 +299,11 @@ public class EmployeeEligibilityService {
             eligibility.setEmployee(employee);
             eligibility.setCertificationRule(rule);
             eligibility.setSource(EligibilitySource.BY_JOB);
-            eligibility.setStatus(EligibilityStatus.BELUM_SERTIFIKASI);
+            if (eligibility.getStatus() == null) {
+                eligibility.setStatus(EligibilityStatus.BELUM_SERTIFIKASI);
+            }
             eligibility.setIsActive(true);
+            eligibility.setDeletedAt(null);
             eligibility.setValidityMonths(rule.getValidityMonths());
             eligibility.setReminderMonths(rule.getReminderMonths());
             eligibility.setWajibSetelahMasuk(rule.getWajibSetelahMasuk());
@@ -299,6 +311,7 @@ public class EmployeeEligibilityService {
             toSave.add(eligibility);
         }
 
+        // eligibility manual (BY_NAME)
         for (CertificationRule rule : manualRules) {
             EmployeeEligibility eligibility = eligibilityRepo
                     .findByEmployeeAndCertificationRuleAndSource(employee, rule, EligibilitySource.BY_NAME)
@@ -307,8 +320,11 @@ public class EmployeeEligibilityService {
             eligibility.setEmployee(employee);
             eligibility.setCertificationRule(rule);
             eligibility.setSource(EligibilitySource.BY_NAME);
-            eligibility.setStatus(EligibilityStatus.BELUM_SERTIFIKASI);
+            if (eligibility.getStatus() == null) {
+                eligibility.setStatus(EligibilityStatus.BELUM_SERTIFIKASI);
+            }
             eligibility.setIsActive(true);
+            eligibility.setDeletedAt(null);
             eligibility.setValidityMonths(rule.getValidityMonths());
             eligibility.setReminderMonths(rule.getReminderMonths());
             eligibility.setWajibSetelahMasuk(rule.getWajibSetelahMasuk());
@@ -319,7 +335,7 @@ public class EmployeeEligibilityService {
         return toSave;
     }
 
-    // ===================== SYNC WITH CERTS =====================
+    // ===================== SYNC WITH CERTIFICATIONS =====================
     private void syncWithCertifications(List<Employee> employees) {
         List<Long> employeeIds = employees.stream()
                 .map(Employee::getId)
@@ -327,6 +343,7 @@ public class EmployeeEligibilityService {
 
         List<EmployeeCertification> certs = employeeCertificationRepo.findByEmployeeIdInAndDeletedAtIsNull(employeeIds);
 
+        // Ambil sertifikat terbaru per employee + rule
         Map<String, EmployeeCertification> latestCerts = certs.stream()
                 .collect(Collectors.toMap(
                         c -> c.getEmployee().getId() + "-" + c.getCertificationRule().getId(),
@@ -340,25 +357,20 @@ public class EmployeeEligibilityService {
             EmployeeCertification cert = latestCerts.get(key);
 
             if (cert != null) {
-                Integer validity = ee.getValidityMonths();
-                Integer reminder = ee.getReminderMonths();
+                ee.setDueDate(cert.getValidUntil()); // sync langsung dari cert
 
-                if (validity != null && cert.getCertDate() != null) {
-                    LocalDate dueDate = cert.getCertDate().plusMonths(validity);
-                    ee.setDueDate(dueDate);
-
-                    if (LocalDate.now().isAfter(dueDate)) {
-                        ee.setStatus(EligibilityStatus.EXPIRED);
-                    } else if (reminder != null && LocalDate.now().isAfter(dueDate.minusMonths(reminder))) {
-                        ee.setStatus(EligibilityStatus.DUE);
-                    } else {
-                        ee.setStatus(EligibilityStatus.AKTIF);
-                    }
+                if (cert.getValidUntil() == null) {
+                    ee.setStatus(EligibilityStatus.BELUM_SERTIFIKASI);
+                } else if (LocalDate.now().isAfter(cert.getValidUntil())) {
+                    ee.setStatus(EligibilityStatus.EXPIRED);
+                } else if (cert.getReminderDate() != null && !LocalDate.now().isBefore(cert.getReminderDate())) {
+                    ee.setStatus(EligibilityStatus.DUE);
                 } else {
                     ee.setStatus(EligibilityStatus.AKTIF);
                 }
             } else {
                 ee.setStatus(EligibilityStatus.BELUM_SERTIFIKASI);
+                ee.setDueDate(null);
             }
         }
 

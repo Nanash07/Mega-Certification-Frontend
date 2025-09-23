@@ -60,6 +60,7 @@ public class EmployeeEligibilityExceptionService {
     // 🔹 Paging + Filter + Search
     @Transactional(readOnly = true)
     public Page<EmployeeEligibilityExceptionResponse> getPagedFiltered(
+            List<Long> employeeIds,
             List<Long> jobIds,
             List<String> certCodes,
             List<Integer> levels,
@@ -69,6 +70,7 @@ public class EmployeeEligibilityExceptionService {
             Pageable pageable
     ) {
         Specification<EmployeeEligibilityException> spec = EmployeeEligibilityExceptionSpecification.notDeleted()
+                .and(EmployeeEligibilityExceptionSpecification.byJobIds(employeeIds))
                 .and(EmployeeEligibilityExceptionSpecification.byJobIds(jobIds))
                 .and(EmployeeEligibilityExceptionSpecification.byCertCodes(certCodes))
                 .and(EmployeeEligibilityExceptionSpecification.byLevels(levels))
@@ -109,18 +111,15 @@ public class EmployeeEligibilityExceptionService {
         CertificationRule rule = ruleRepo.findById(certificationRuleId)
                 .orElseThrow(() -> new RuntimeException("Certification rule not found"));
 
-        // cek apakah pernah ada exception untuk kombinasi employee + rule (hanya aktif)
-        EmployeeEligibilityException existing = exceptionRepo
-                .findFirstByEmployeeIdAndCertificationRuleIdAndDeletedAtIsNull(employeeId, certificationRuleId)
-                .orElse(null);
+        // Cek apakah sudah ada yang aktif
+        exceptionRepo.findFirstByEmployeeIdAndCertificationRuleIdAndDeletedAtIsNull(employeeId, certificationRuleId)
+                .ifPresent(e -> {
+                    throw new RuntimeException("Exception already exists and active");
+                });
 
-        if (existing != null) {
-            throw new RuntimeException("Exception already exists and active");
-        }
-
-        // cek apakah ada yang pernah di-soft delete → re-activate
+        // Cek apakah pernah ada (termasuk soft delete)
         EmployeeEligibilityException softDeleted = exceptionRepo
-                .findFirstByEmployeeAndCertificationRuleAndDeletedAtIsNull(null, null) // dummy, nanti handle by custom query kalau perlu
+                .findFirstByEmployeeIdAndCertificationRuleId(employeeId, certificationRuleId)
                 .orElse(null);
 
         if (softDeleted != null && softDeleted.getDeletedAt() != null) {
@@ -131,12 +130,14 @@ public class EmployeeEligibilityExceptionService {
             return toResponse(exceptionRepo.save(softDeleted));
         }
 
-        // kalau belum pernah ada → create baru
+        // Kalau belum pernah ada → create baru
         EmployeeEligibilityException exception = EmployeeEligibilityException.builder()
                 .employee(employee)
                 .certificationRule(rule)
                 .isActive(true)
                 .notes(notes)
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
                 .build();
 
         return toResponse(exceptionRepo.save(exception));
@@ -148,6 +149,7 @@ public class EmployeeEligibilityExceptionService {
         EmployeeEligibilityException exception = exceptionRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Exception not found"));
         exception.setNotes(notes);
+        exception.setUpdatedAt(Instant.now());
         return toResponse(exceptionRepo.save(exception));
     }
 
@@ -168,6 +170,7 @@ public class EmployeeEligibilityExceptionService {
                 .orElseThrow(() -> new RuntimeException("Exception not found"));
         exception.setIsActive(false);
         exception.setDeletedAt(Instant.now());
+        exception.setUpdatedAt(Instant.now());
         exceptionRepo.save(exception);
     }
 }
