@@ -90,11 +90,8 @@ export const MENU = [
   {
     label: "Batch Sertifikasi",
     icon: <ClipboardList size={18} />,
+    href: "/batch", 
     key: "batch",
-    subMenu: [
-      { label: "Daftar Batch", href: "/batch" },
-      { label: "Registrasi Pegawai", href: "/batch/registrasi" },
-    ],
   },
 
   // 6. User & Role Management

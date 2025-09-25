@@ -89,7 +89,7 @@ public class EmployeeCertification {
         ACTIVE,
         DUE,
         EXPIRED,
-        REVOKED
+        INVALID
     }
 
     public enum ProcessType {

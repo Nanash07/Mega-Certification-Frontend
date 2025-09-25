@@ -3,7 +3,6 @@ package com.bankmega.certification.repository;
 import com.bankmega.certification.entity.EmployeeEligibility;
 import com.bankmega.certification.entity.Employee;
 import com.bankmega.certification.entity.CertificationRule;
-import com.bankmega.certification.entity.EligibilitySource;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
@@ -17,8 +16,9 @@ public interface EmployeeEligibilityRepository extends JpaRepository<EmployeeEli
     Optional<EmployeeEligibility> findByEmployeeAndCertificationRuleAndSource(
             Employee employee,
             CertificationRule rule,
-            EligibilitySource source
+            EmployeeEligibility.EligibilitySource source
     );
+    List<EmployeeEligibility> findByCertificationRule_IdAndIsActiveTrueAndDeletedAtIsNull(Long certRuleId);
 
     // ==== Employee based ====
     List<EmployeeEligibility> findByEmployeeAndDeletedAtIsNull(Employee employee);

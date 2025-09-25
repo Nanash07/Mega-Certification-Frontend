@@ -122,11 +122,10 @@ public class EmployeeEligibilityService {
                     pageable.getPageNumber(),
                     pageable.getPageSize(),
                     Sort.by(
-                            Sort.Order.asc("employee.jobPosition.name"),
+                            Sort.Order.asc("employee.nip"),
                             Sort.Order.asc("certificationRule.certification.code"),
                             Sort.Order.asc("certificationRule.certificationLevel.level"),
-                            Sort.Order.asc("certificationRule.subField.code"),
-                            Sort.Order.asc("status")
+                            Sort.Order.asc("certificationRule.subField.code")
                     )
             );
         }
@@ -156,17 +155,17 @@ public class EmployeeEligibilityService {
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
         EmployeeEligibility eligibility = eligibilityRepo
-                .findByEmployeeAndCertificationRuleAndSource(employee, rule, EligibilitySource.BY_NAME)
+                .findByEmployeeAndCertificationRuleAndSource(employee, rule, EmployeeEligibility.EligibilitySource.BY_NAME)
                 .orElseGet(EmployeeEligibility::new);
 
         eligibility.setEmployee(employee);
         eligibility.setCertificationRule(rule);
-        eligibility.setSource(EligibilitySource.BY_NAME);
+        eligibility.setSource(EmployeeEligibility.EligibilitySource.BY_NAME);
         eligibility.setIsActive(true);
         eligibility.setDeletedAt(null);
 
         if (eligibility.getStatus() == null) {
-            eligibility.setStatus(EligibilityStatus.BELUM_SERTIFIKASI);
+            eligibility.setStatus(EmployeeEligibility.EligibilityStatus.NOT_YET_CERTIFIED);
         }
 
         eligibility.setValidityMonths(rule.getValidityMonths());
@@ -293,14 +292,14 @@ public class EmployeeEligibilityService {
         // eligibility dari job mapping
         for (CertificationRule rule : mappingRules) {
             EmployeeEligibility eligibility = eligibilityRepo
-                    .findByEmployeeAndCertificationRuleAndSource(employee, rule, EligibilitySource.BY_JOB)
+                    .findByEmployeeAndCertificationRuleAndSource(employee, rule, EmployeeEligibility.EligibilitySource.BY_JOB)
                     .orElseGet(EmployeeEligibility::new);
 
             eligibility.setEmployee(employee);
             eligibility.setCertificationRule(rule);
-            eligibility.setSource(EligibilitySource.BY_JOB);
+            eligibility.setSource(EmployeeEligibility.EligibilitySource.BY_JOB);
             if (eligibility.getStatus() == null) {
-                eligibility.setStatus(EligibilityStatus.BELUM_SERTIFIKASI);
+                eligibility.setStatus(EmployeeEligibility.EligibilityStatus.NOT_YET_CERTIFIED);
             }
             eligibility.setIsActive(true);
             eligibility.setDeletedAt(null);
@@ -314,14 +313,14 @@ public class EmployeeEligibilityService {
         // eligibility manual (BY_NAME)
         for (CertificationRule rule : manualRules) {
             EmployeeEligibility eligibility = eligibilityRepo
-                    .findByEmployeeAndCertificationRuleAndSource(employee, rule, EligibilitySource.BY_NAME)
+                    .findByEmployeeAndCertificationRuleAndSource(employee, rule, EmployeeEligibility.EligibilitySource.BY_NAME)
                     .orElseGet(EmployeeEligibility::new);
 
             eligibility.setEmployee(employee);
             eligibility.setCertificationRule(rule);
-            eligibility.setSource(EligibilitySource.BY_NAME);
+            eligibility.setSource(EmployeeEligibility.EligibilitySource.BY_NAME);
             if (eligibility.getStatus() == null) {
-                eligibility.setStatus(EligibilityStatus.BELUM_SERTIFIKASI);
+                eligibility.setStatus(EmployeeEligibility.EligibilityStatus.NOT_YET_CERTIFIED);
             }
             eligibility.setIsActive(true);
             eligibility.setDeletedAt(null);
@@ -360,16 +359,16 @@ public class EmployeeEligibilityService {
                 ee.setDueDate(cert.getValidUntil()); // sync langsung dari cert
 
                 if (cert.getValidUntil() == null) {
-                    ee.setStatus(EligibilityStatus.BELUM_SERTIFIKASI);
+                    ee.setStatus(EmployeeEligibility.EligibilityStatus.NOT_YET_CERTIFIED);
                 } else if (LocalDate.now().isAfter(cert.getValidUntil())) {
-                    ee.setStatus(EligibilityStatus.EXPIRED);
+                    ee.setStatus(EmployeeEligibility.EligibilityStatus.EXPIRED);
                 } else if (cert.getReminderDate() != null && !LocalDate.now().isBefore(cert.getReminderDate())) {
-                    ee.setStatus(EligibilityStatus.DUE);
+                    ee.setStatus(EmployeeEligibility.EligibilityStatus.DUE);
                 } else {
-                    ee.setStatus(EligibilityStatus.AKTIF);
+                    ee.setStatus(EmployeeEligibility.EligibilityStatus.ACTIVE);
                 }
             } else {
-                ee.setStatus(EligibilityStatus.BELUM_SERTIFIKASI);
+                ee.setStatus(EmployeeEligibility.EligibilityStatus.NOT_YET_CERTIFIED);
                 ee.setDueDate(null);
             }
         }

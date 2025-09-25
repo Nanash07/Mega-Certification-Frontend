@@ -163,6 +163,17 @@ export default function EmployeeExceptionPage() {
   ]);
 
   useEffect(() => {
+    setPage(1);
+  }, [
+    filterEmployee,
+    filterJob,
+    filterCert,
+    filterLevel,
+    filterSub,
+    filterStatus,
+  ]);
+
+  useEffect(() => {
     loadFilters();
   }, []);
 
@@ -261,8 +272,8 @@ export default function EmployeeExceptionPage() {
           <Select
             isMulti
             options={[
-              { value: "AKTIF", label: "Aktif" },
-              { value: "NONAKTIF", label: "Nonaktif" },
+              { value: "ACTIVE", label: "ACTIVE" },
+              { value: "NONACTIVE", label: "NONACTIVE" },
             ]}
             value={filterStatus}
             onChange={setFilterStatus}
@@ -316,11 +327,11 @@ export default function EmployeeExceptionPage() {
                   <td>
                     {r.isActive ? (
                       <span className="badge badge-success border-success badge-sm text-slate-50">
-                        Aktif
+                        ACTIVE
                       </span>
                     ) : (
                       <span className="badge badge-secondary border-secondary badge-sm text-slate-50">
-                        Nonaktif
+                        NONACTIVE
                       </span>
                     )}
                   </td>

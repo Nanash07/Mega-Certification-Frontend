@@ -179,7 +179,7 @@ public class EmployeeCertificationService {
         EmployeeCertification ec = repo.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new RuntimeException("Certification not found"));
         ec.setDeletedAt(Instant.now());
-        ec.setStatus(EmployeeCertification.Status.REVOKED);
+        ec.setStatus(EmployeeCertification.Status.INVALID);
         ec.setUpdatedAt(Instant.now());
         repo.save(ec);
     }
@@ -195,7 +195,7 @@ public class EmployeeCertificationService {
     // ================== Paging + Filter ==================
     @Transactional(readOnly = true)
     public Page<EmployeeCertificationResponse> getPagedFiltered(
-            List<String> employeeIds,
+            List<Long> employeeIds,
             List<String> certCodes,
             List<Integer> levels,
             List<String> subCodes,

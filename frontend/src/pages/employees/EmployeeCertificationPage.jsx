@@ -231,7 +231,7 @@ export default function EmployeeCertificationPage() {
               { value: "ACTIVE", label: "Active" },
               { value: "DUE", label: "Due" },
               { value: "EXPIRED", label: "Expired" },
-              { value: "REVOKED", label: "Revoked" },
+              { value: "INVALID", label: "Invalid" },
             ]}
             value={filterStatus}
             onChange={setFilterStatus}
@@ -322,7 +322,7 @@ export default function EmployeeCertificationPage() {
                           ? "badge-warning"
                           : r.status === "EXPIRED"
                           ? "badge-error"
-                          : r.status === "REVOKED"
+                          : r.status === "INVALID"
                           ? "badge-ghost"
                           : "badge-neutral"
                       }`}

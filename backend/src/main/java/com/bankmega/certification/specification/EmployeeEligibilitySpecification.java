@@ -1,8 +1,6 @@
 package com.bankmega.certification.specification;
 
 import com.bankmega.certification.entity.EmployeeEligibility;
-import com.bankmega.certification.entity.EligibilitySource;
-import com.bankmega.certification.entity.EligibilityStatus;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.util.List;
@@ -48,9 +46,9 @@ public class EmployeeEligibilitySpecification {
     public static Specification<EmployeeEligibility> byStatuses(List<String> statuses) {
         return (root, query, cb) -> {
             if (statuses == null || statuses.isEmpty()) return cb.conjunction();
-            List<EligibilityStatus> parsed = statuses.stream()
+            List<EmployeeEligibility.EligibilityStatus> parsed = statuses.stream()
                     .map(String::toUpperCase)
-                    .map(EligibilityStatus::valueOf)
+                    .map(EmployeeEligibility.EligibilityStatus::valueOf)
                     .collect(Collectors.toList());
             return root.get("status").in(parsed);
         };
@@ -59,9 +57,9 @@ public class EmployeeEligibilitySpecification {
     public static Specification<EmployeeEligibility> bySources(List<String> sources) {
         return (root, query, cb) -> {
             if (sources == null || sources.isEmpty()) return cb.conjunction();
-            List<EligibilitySource> parsed = sources.stream()
+            List<EmployeeEligibility.EligibilitySource> parsed = sources.stream()
                     .map(String::toUpperCase)
-                    .map(EligibilitySource::valueOf)
+                    .map(EmployeeEligibility.EligibilitySource::valueOf)
                     .collect(Collectors.toList());
             return root.get("source").in(parsed);
         };

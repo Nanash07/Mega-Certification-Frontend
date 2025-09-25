@@ -129,6 +129,18 @@ export default function EmployeeEligibilityPage() {
     filterSource,
   ]);
 
+  // reset page ke 1 kalau filter berubah
+  useEffect(() => {
+    setPage(1);
+  }, [
+    filterEmployee,
+    filterJob,
+    filterCert,
+    filterLevel,
+    filterSub,
+    filterStatus,
+    filterSource,
+  ]);
   useEffect(() => {
     loadFilters();
   }, []);
@@ -139,10 +151,22 @@ export default function EmployeeEligibilityPage() {
     <div>
       {/* Toolbar */}
       <div className="mb-4 space-y-3">
-        <div className="grid grid-cols-1 lg:grid-cols-6 gap-3">
-          <div className="col-span-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 text-xs">
+          <div className="col-span-1">
+            <AsyncSelect
+            cacheOptions
+            defaultOptions
+            loadOptions={loadEmployees}
+            value={filterEmployee}
+            onChange={setFilterEmployee}
+            placeholder="Filter Pegawai"
+            isClearable
+          />
+          </div>
+          <div className="col-span-3"></div>
+          <div className="col-span-1">
             <button
-              className="btn btn-primary btn-sm w-full flex items-center justify-center gap-2"
+              className="btn btn-primary btn-sm w-full"
               onClick={onRefresh}
               disabled={refreshing}
             >
@@ -154,7 +178,7 @@ export default function EmployeeEligibilityPage() {
           </div>
           <div className="col-span-1">
             <button
-              className="btn btn-sm btn-accent w-full"
+              className="btn btn-accent btn-soft border-accent btn-sm w-full"
               onClick={() => {
                 setFilterEmployee(null);
                 setFilterJob([]);
@@ -173,16 +197,7 @@ export default function EmployeeEligibilityPage() {
         </div>
 
         {/* Filters */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3 text-xs">
-          <AsyncSelect
-            cacheOptions
-            defaultOptions
-            loadOptions={loadEmployees}
-            value={filterEmployee}
-            onChange={setFilterEmployee}
-            placeholder="Filter Pegawai"
-            isClearable
-          />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 text-xs">
           <Select
             isMulti
             options={jobOptions}
@@ -214,10 +229,10 @@ export default function EmployeeEligibilityPage() {
           <Select
             isMulti
             options={[
-              { value: "BELUM_SERTIFIKASI", label: "Belum Sertifikasi" },
-              { value: "AKTIF", label: "Aktif" },
-              { value: "DUE", label: "Mau Habis" },
-              { value: "EXPIRED", label: "Expired" },
+              { value: "NOT_YET_CERTIFIED", label: "BELUM SERTIFIKASI" },
+              { value: "ACTIVE", label: "ACTIVE" },
+              { value: "DUE", label: "DUE" },
+              { value: "EXPIRED", label: "EXPIRED" },
             ]}
             value={filterStatus}
             onChange={setFilterStatus}
@@ -231,7 +246,7 @@ export default function EmployeeEligibilityPage() {
             ]}
             value={filterSource}
             onChange={setFilterSource}
-            placeholder="Filter Sumber"
+            placeholder="Filter Source"
           />
         </div>
       </div>
@@ -282,13 +297,37 @@ export default function EmployeeEligibilityPage() {
                       ? new Date(r.joinDate).toLocaleDateString("id-ID")
                       : "-"}
                   </td>
-                  <td>{r.status}</td>
+                  <td>
+                    <span
+                      className={`badge badge-sm text-white ${
+                        r.status === "ACTIVE"
+                          ? "badge-success"
+                          : r.status === "DUE"
+                          ? "badge-warning"
+                          : r.status === "EXPIRED"
+                          ? "badge-error"
+                          : "badge-neutral"
+                      }`}
+                    >
+                      {r.status === "NOT_YET_CERTIFIED" ? "BELUM SERTIFIKASI" : r.status}
+                    </span>
+                  </td>
                   <td>
                     {r.dueDate
                       ? new Date(r.dueDate).toLocaleDateString("id-ID")
                       : "-"}
                   </td>
-                  <td>{r.source === "BY_JOB" ? "By Job" : "By Name"}</td>
+                  <td>
+                    <span
+                      className={`badge badge-sm ${
+                        r.source === "BY_JOB"
+                          ? "badge-neutral"
+                          : "badge-info"
+                      }`}
+                    >
+                      {r.source}
+                    </span>
+                  </td>
                 </tr>
               ))
             )}

@@ -33,19 +33,21 @@ public class EmployeeService {
 
     // 🔹 Paging + Filter + Search
     public Page<EmployeeResponse> search(
-            String search,
+            List<Long> employeeIds,
             List<Long> regionalIds,
             List<Long> divisionIds,
             List<Long> unitIds,
             List<Long> jobPositionIds,
+            String search,
             Pageable pageable
     ) {
         Specification<Employee> spec = EmployeeSpecification.notDeleted()
-                .and(EmployeeSpecification.bySearch(search))
+                .and(EmployeeSpecification.byEmployeeIds(employeeIds))
                 .and(EmployeeSpecification.byRegionalIds(regionalIds))
                 .and(EmployeeSpecification.byDivisionIds(divisionIds))
                 .and(EmployeeSpecification.byUnitIds(unitIds))
-                .and(EmployeeSpecification.byJobPositionIds(jobPositionIds));
+                .and(EmployeeSpecification.byJobPositionIds(jobPositionIds))
+                .and(EmployeeSpecification.bySearch(search));
 
         if (pageable.getSort().isUnsorted()) {
             pageable = PageRequest.of(

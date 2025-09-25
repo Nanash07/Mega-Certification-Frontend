@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import Select from "react-select";
+import AsyncSelect from "react-select/async";
 import Pagination from "../../components/common/Pagination";
 import {
   fetchEmployees,
@@ -10,6 +11,7 @@ import {
   fetchDivisions,
   fetchUnits,
   fetchJobPositions,
+  searchEmployees,
 } from "../../services/employeeService";
 import EditEmployeeModal from "../../components/employees/EditEmployeeModal";
 import ImportEmployeeModal from "../../components/employees/ImportEmployeeModal";
@@ -24,8 +26,8 @@ export default function EmployeePage() {
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
 
-  // Search & Filters
-  const [search, setSearch] = useState("");
+  // Filters
+  const [filterEmployee, setFilterEmployee] = useState(null);
   const [regionalIds, setRegionalIds] = useState([]);
   const [divisionIds, setDivisionIds] = useState([]);
   const [unitIds, setUnitIds] = useState([]);
@@ -61,6 +63,23 @@ export default function EmployeePage() {
       .catch(() => toast.error("Gagal memuat filter master data"));
   }, []);
 
+  // Async search employees
+  const loadEmployees = async (inputValue) => {
+    try {
+      const res = await searchEmployees({
+        search: inputValue,
+        page: 0,
+        size: 20,
+      });
+      return res.content.map((e) => ({
+        value: e.id,
+        label: `${e.nip} - ${e.name}`,
+      }));
+    } catch {
+      return [];
+    }
+  };
+
   // Load employees
   async function load() {
     setLoading(true);
@@ -68,7 +87,7 @@ export default function EmployeePage() {
       const params = {
         page: page - 1,
         size: rowsPerPage,
-        search: search || null,
+        employeeIds: filterEmployee ? [filterEmployee.value] : [],
         regionalIds: regionalIds.map((i) => i.value),
         divisionIds: divisionIds.map((i) => i.value),
         unitIds: unitIds.map((i) => i.value),
@@ -89,16 +108,16 @@ export default function EmployeePage() {
 
   useEffect(() => {
     load();
-  }, [page, rowsPerPage, search, regionalIds, divisionIds, unitIds, jobPositionIds, statuses]);
+  }, [page, rowsPerPage, filterEmployee, regionalIds, divisionIds, unitIds, jobPositionIds, statuses]);
 
   // Reset filter
   function resetFilter() {
+    setFilterEmployee(null);
     setRegionalIds([]);
     setDivisionIds([]);
     setUnitIds([]);
     setJobPositionIds([]);
     setStatuses([]);
-    setSearch("");
     setPage(1);
     toast.success("Clear filter berhasil");
   }
@@ -141,18 +160,6 @@ export default function EmployeePage() {
       {/* Toolbar */}
       <div className="mb-4 space-y-3">
         <div className="grid grid-cols-1 lg:grid-cols-6 gap-3">
-          <div className="col-span-1 lg:col-span-4">
-            <input
-              type="text"
-              className="input input-sm input-bordered w-full"
-              placeholder="🔍 Cari NIP, Nama, Email..."
-              value={search}
-              onChange={(e) => {
-                setPage(1);
-                setSearch(e.target.value);
-              }}
-            />
-          </div>
           <div className="col-span-1">
             <button className="btn btn-warning btn-sm w-full" onClick={handleDownloadTemplate}>
               Download Template
@@ -167,6 +174,15 @@ export default function EmployeePage() {
 
         {/* Filters */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 text-xs">
+          <AsyncSelect
+            cacheOptions
+            defaultOptions
+            loadOptions={loadEmployees}
+            value={filterEmployee}
+            onChange={setFilterEmployee}
+            placeholder="Filter Pegawai"
+            isClearable
+          />
           <Select isMulti options={regionalOptions} value={regionalIds} onChange={setRegionalIds} placeholder="Filter Regional" />
           <Select isMulti options={divisionOptions} value={divisionIds} onChange={setDivisionIds} placeholder="Filter Division" />
           <Select isMulti options={unitOptions} value={unitIds} onChange={setUnitIds} placeholder="Filter Unit" />
@@ -224,7 +240,21 @@ export default function EmployeePage() {
                   <td>{e.divisionName || "-"}</td>
                   <td>{e.unitName || "-"}</td>
                   <td>{e.jobName || "-"}</td>
-                  <td>{e.status}</td>
+                  <td>
+                    <span
+                      className={`badge badge-sm text-white ${
+                        e.status === "ACTIVE"
+                          ? "badge-success"
+                          : e.status === "MUTASI"
+                          ? "badge-warning"
+                          : e.status === "RESIGN"
+                          ? "badge-error"
+                          : "badge-neutral"
+                      }`}
+                    >
+                      {e.status}
+                    </span>
+                  </td>
                   <td>{e.joinDate ? new Date(e.joinDate).toLocaleDateString("id-ID") : "-"}</td>
                   <td className="flex gap-2">
                     <button className="btn btn-xs btn-warning btn-soft border-warning" onClick={() => setEditItem(e)}>
@@ -256,7 +286,6 @@ export default function EmployeePage() {
 
       {/* Modals */}
       <EditEmployeeModal open={!!editItem} initial={editItem} onClose={() => setEditItem(null)} onSaved={load} />
-
       <ImportEmployeeModal open={openImport} onClose={() => setOpenImport(false)} onImported={load} />
 
       {/* Confirm Delete Modal */}

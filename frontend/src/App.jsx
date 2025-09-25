@@ -25,9 +25,12 @@ import CertificationLevelPage from "./pages/certifications/CertificationLevelPag
 import SubFieldPage from "./pages/certifications/SubFieldPage";
 import CertificationRulePage from "./pages/certifications/CertificationRulePage";
 import InstitutionPage from "./pages/certifications/InstitutionPage"; 
-import UserPage from "./pages/users/UserPage";
+
+import BatchPage from "./pages/batch/BatchPage";
+import DetailBatchPage from "./pages/batch/DetailBatchPage";
 
 import PicCertificationScopePage from "./pages/pic/PicCertificationScopePage";
+import UserPage from "./pages/users/UserPage";
 
 export default function App() {
   return (
@@ -167,6 +170,28 @@ export default function App() {
             <ProtectedRoute roles={["SUPERADMIN"]}>
               <MainLayout>
                 <PicCertificationScopePage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/batch"
+          element={
+            <ProtectedRoute roles={["SUPERADMIN"]}>
+              <MainLayout>
+                <BatchPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/batch/:id"
+          element={
+            <ProtectedRoute roles={["SUPERADMIN", "PIC"]}>
+              <MainLayout>
+                <DetailBatchPage />
               </MainLayout>
             </ProtectedRoute>
           }

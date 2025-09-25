@@ -77,4 +77,17 @@ public class EmployeeEligibility {
 
     @Column(name = "deleted_at")
     private Instant deletedAt;
+
+    // 🔹 Enum dipindahin ke dalam entity (tanpa ubah nama/value)
+    public enum EligibilitySource {
+        BY_JOB,
+        BY_NAME,
+    }
+
+    public enum EligibilityStatus {
+        NOT_YET_CERTIFIED,
+        ACTIVE,
+        DUE,
+        EXPIRED
+    }
 }

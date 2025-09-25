@@ -89,12 +89,24 @@ public class CertificationRuleService {
 
     // 🔹 All non-deleted rules
     @Transactional(readOnly = true)
-    public List<CertificationRuleResponse> getAll() {
-        return ruleRepo.findByDeletedAtIsNull()
-                .stream()
+        public List<CertificationRuleResponse> getAll() {
+        return ruleRepo.findByDeletedAtIsNull().stream()
+                .sorted((a, b) -> {
+                        // Key A
+                        String keyA = (a.getCertification().getCode() != null ? a.getCertification().getCode() : "") + " " +
+                                (a.getCertificationLevel() != null && a.getCertificationLevel().getLevel() != null ? a.getCertificationLevel().getLevel() : "") + " " +
+                                (a.getSubField() != null && a.getSubField().getCode() != null ? a.getSubField().getCode() : "");
+
+                        // Key B
+                        String keyB = (b.getCertification().getCode() != null ? b.getCertification().getCode() : "") + " " +
+                                (b.getCertificationLevel() != null && b.getCertificationLevel().getLevel() != null ? b.getCertificationLevel().getLevel() : "") + " " +
+                                (b.getSubField() != null && b.getSubField().getCode() != null ? b.getSubField().getCode() : "");
+
+                        return keyA.compareToIgnoreCase(keyB);
+                })
                 .map(this::toResponse)
                 .toList();
-    }
+        }
 
     // 🔹 Create
     @Transactional

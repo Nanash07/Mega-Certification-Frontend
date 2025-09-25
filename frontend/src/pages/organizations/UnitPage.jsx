@@ -74,7 +74,7 @@ export default function UnitPage() {
 
       {/* 📋 Tabel */}
       <div className="overflow-x-auto rounded-xl border border-gray-200 shadow bg-base-100">
-        <table className="table">
+        <table className="table table-zebra text-xs">
           <thead className="bg-base-200 text-xs">
             <tr>
               <th>No</th>

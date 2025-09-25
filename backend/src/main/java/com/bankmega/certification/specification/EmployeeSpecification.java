@@ -1,6 +1,7 @@
 package com.bankmega.certification.specification;
 
 import com.bankmega.certification.entity.Employee;
+
 import org.springframework.data.jpa.domain.Specification;
 
 import java.util.List;
@@ -24,6 +25,13 @@ public class EmployeeSpecification {
                     cb.like(cb.lower(root.get("jobPosition").get("name")), like)
             );
         };
+    }
+
+    public static Specification<Employee> byEmployeeIds(List<Long> employeeIds) {
+        return (root, query, cb) ->
+                (employeeIds == null || employeeIds.isEmpty())
+                        ? cb.conjunction()
+                        : root.get("id").in(employeeIds); // ✅ FIX
     }
 
     public static Specification<Employee> byRegionalIds(List<Long> ids) {

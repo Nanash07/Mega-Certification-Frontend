@@ -1,0 +1,17 @@
+// src/main/java/com/bankmega/certification/repository/EmployeeBatchRepository.java
+package com.bankmega.certification.repository;
+
+import com.bankmega.certification.entity.EmployeeBatch;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+
+import java.util.List;
+import java.util.Optional;
+
+public interface EmployeeBatchRepository extends JpaRepository<EmployeeBatch, Long>, JpaSpecificationExecutor<EmployeeBatch> {
+    List<EmployeeBatch> findByBatch_IdAndDeletedAtIsNull(Long batchId);
+    Optional<EmployeeBatch> findByIdAndDeletedAtIsNull(Long id);
+    Optional<EmployeeBatch> findByBatch_IdAndEmployee_IdAndDeletedAtIsNull(Long batchId, Long employeeId);
+    Optional<EmployeeBatch> findByBatch_IdAndEmployee_Id(Long batchId, Long employeeId);
+
+}

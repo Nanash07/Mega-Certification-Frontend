@@ -21,15 +21,16 @@ public class EmployeeController {
     // 🔹 Paging + Filter
     @GetMapping("/paged")
     public ResponseEntity<Page<EmployeeResponse>> getPaged(
-            @RequestParam(required = false) String search,
+            @RequestParam(required = false) List<Long> employeeIds,
             @RequestParam(required = false) List<Long> regionalIds,
             @RequestParam(required = false) List<Long> divisionIds,
             @RequestParam(required = false) List<Long> unitIds,
             @RequestParam(required = false) List<Long> jobPositionIds,
+            @RequestParam(required = false) String search,
             Pageable pageable
     ) {
         return ResponseEntity.ok(
-                service.search(search, regionalIds, divisionIds, unitIds, jobPositionIds, pageable)
+                service.search(employeeIds, regionalIds, divisionIds, unitIds, jobPositionIds, search, pageable)
         );
     }
 

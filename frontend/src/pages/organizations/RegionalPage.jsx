@@ -64,7 +64,7 @@ export default function RegionalPage() {
 
       {/* Table */}
       <div className="overflow-x-auto rounded-xl border border-gray-200 shadow bg-base-100">
-        <table className="table text-sm">
+        <table className="table table-zebra text-xs">
           <thead className="text-xs bg-base-200">
             <tr>
               <th>No</th>
