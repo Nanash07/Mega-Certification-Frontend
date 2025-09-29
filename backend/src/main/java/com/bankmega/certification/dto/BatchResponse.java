@@ -17,23 +17,23 @@ public class BatchResponse {
     private Long id;
     private String batchName;
 
-    // 🔹 Certification
+    // Certification
     private Long certificationRuleId;
     private Long certificationId;
     private String certificationName;
     private String certificationCode;
 
-    // 🔹 Level
+    // Level
     private Long certificationLevelId;
     private String certificationLevelName;
     private Integer certificationLevelLevel;
 
-    // 🔹 Subfield
+    // Subfield
     private Long subFieldId;
     private String subFieldName;
     private String subFieldCode;
 
-    // 🔹 Rule Metadata
+    // Rule Metadata
     private Integer validityMonths;
     private Integer reminderMonths;
     private Long refreshmentTypeId;
@@ -41,18 +41,21 @@ public class BatchResponse {
     private Integer wajibSetelahMasuk;
     private Boolean isActiveRule;
 
-    // 🔹 Institution
+    // Institution
     private Long institutionId;
     private String institutionName;
 
-    // 🔹 Batch
+    // Batch
     private LocalDate startDate;
     private LocalDate endDate;
     private Integer quota;
     private Batch.Status status;
     private String notes;
 
-    // 🔹 Audit
+    // Audit
     private Instant createdAt;
     private Instant updatedAt;
+
+    private Long totalParticipants;
+    private Long totalPassed;
 }

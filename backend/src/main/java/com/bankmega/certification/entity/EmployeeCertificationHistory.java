@@ -2,6 +2,7 @@ package com.bankmega.certification.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
@@ -21,12 +22,11 @@ public class EmployeeCertificationHistory {
     private Long id;
 
     // 🔹 Relasi ke sertifikat pegawai
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_certification_id", nullable = false)
     private EmployeeCertification employeeCertification;
 
     // 🔹 Snapshot sertifikat saat itu (JSON string)
-    @Lob
     @Column(name = "snapshot", columnDefinition = "TEXT", nullable = false)
     private String snapshot;
 
@@ -34,11 +34,12 @@ public class EmployeeCertificationHistory {
     @Column(name = "action_type", length = 20, nullable = false)
     private ActionType actionType;
 
-    @Column(name = "action_at", nullable = false)
+    @CreatedDate
+    @Column(name = "action_at", nullable = false, updatable = false)
     private Instant actionAt;
 
-    @Column(name = "action_by")
-    private Long actionBy;
+    @Column(name = "action_by", length = 100)
+    private String actionBy; // username / email PIC yang trigger
 
     public enum ActionType {
         CREATED,

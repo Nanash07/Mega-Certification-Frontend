@@ -212,9 +212,9 @@ export default function CertificationRulePage() {
                   <td>{r.wajibSetelahMasuk != null ? `${r.wajibSetelahMasuk} bulan` : "-"}</td>
                   <td>
                     {r.isActive ? (
-                      <span className="badge badge-success badge-sm">Aktif</span>
+                      <span className="badge badge-success badge-sm text-white">ACTIVE</span>
                     ) : (
-                      <span className="badge badge-warning badge-sm">Nonaktif</span>
+                      <span className="badge badge-warning badge-sm text-white">NONACTIVE</span>
                     )}
                   </td>
                   <td>
@@ -223,8 +223,6 @@ export default function CertificationRulePage() {
                           day: "2-digit",
                           month: "short",
                           year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
                         })
                       : "-"}
                   </td>

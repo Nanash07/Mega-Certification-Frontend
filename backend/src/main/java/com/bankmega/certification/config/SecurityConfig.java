@@ -27,39 +27,46 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
-            // ⬇️ penting: aktifkan CORS di security
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // ⬇️ preflight harus lolos
+                // preflight
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
+                // auth
                 .requestMatchers("/api/auth/**").permitAll()
 
-                // USERS
-                .requestMatchers(HttpMethod.GET, "/api/users/**").hasAnyRole("SUPERADMIN","PIC") // atau authenticated()
+                // users
+                .requestMatchers(HttpMethod.GET, "/api/users/**").hasAnyRole("SUPERADMIN","PIC")
                 .requestMatchers(HttpMethod.POST, "/api/users").hasRole("SUPERADMIN")
                 .requestMatchers(HttpMethod.PUT,  "/api/users/**").hasRole("SUPERADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("SUPERADMIN")
 
-                // ROLES
+                // roles
                 .requestMatchers(HttpMethod.GET, "/api/roles/**").hasAnyRole("SUPERADMIN","PIC")
                 .requestMatchers(HttpMethod.POST, "/api/roles").hasRole("SUPERADMIN")
                 .requestMatchers(HttpMethod.PUT,  "/api/roles/**").hasRole("SUPERADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/roles/**").hasRole("SUPERADMIN")
 
+                // certifications
                 .requestMatchers(HttpMethod.GET, "/api/certifications/**").hasAnyRole("SUPERADMIN","PIC")
                 .requestMatchers(HttpMethod.POST, "/api/certifications").hasRole("SUPERADMIN")
                 .requestMatchers(HttpMethod.PUT,  "/api/certifications/**").hasRole("SUPERADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/certifications/**").hasRole("SUPERADMIN")
-                
-                // PIC Certification (punya lo)
+
+                // employee certifications → file endpoint khusus
+                .requestMatchers(HttpMethod.GET, "/api/employee-certifications/*/file").permitAll()
+                // kalau upload/edit/delete tetap proteksi
+                .requestMatchers(HttpMethod.POST, "/api/employee-certifications/**").hasAnyRole("SUPERADMIN","PIC")
+                .requestMatchers(HttpMethod.PUT,  "/api/employee-certifications/**").hasAnyRole("SUPERADMIN","PIC")
+                .requestMatchers(HttpMethod.DELETE, "/api/employee-certifications/**").hasAnyRole("SUPERADMIN","PIC")
+
+                // pic scopes
                 .requestMatchers(HttpMethod.POST,   "/api/pic-scopes").hasRole("SUPERADMIN")
                 .requestMatchers(HttpMethod.PUT,    "/api/pic-scopes/**").hasRole("SUPERADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/pic-scopes/**").hasRole("SUPERADMIN")
                 .requestMatchers(HttpMethod.GET,    "/api/pic-scopes/user/**").hasAnyRole("SUPERADMIN","PIC")
                 .requestMatchers(HttpMethod.GET,    "/api/pic-scopes").hasRole("SUPERADMIN")
-
 
                 .anyRequest().authenticated()
             );
@@ -68,15 +75,14 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // ⬇️ CORS untuk origin Vite (5173)
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration c = new CorsConfiguration();
         c.setAllowedOrigins(List.of("http://localhost:5173"));
         c.setAllowedMethods(List.of("GET","POST","PUT","DELETE","PATCH","OPTIONS"));
-        c.addAllowedHeader("*"); // biar semua header lolos
+        c.addAllowedHeader("*");
         c.setExposedHeaders(List.of("Location"));
-        c.setAllowCredentials(true); // kalau lo mau cookie/JWT di header
+        c.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", c);
         return source;

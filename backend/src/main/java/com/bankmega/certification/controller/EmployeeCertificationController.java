@@ -1,12 +1,20 @@
 package com.bankmega.certification.controller;
 
+import com.bankmega.certification.dto.CertificationProcessLogResponse;
 import com.bankmega.certification.dto.EmployeeCertificationRequest;
 import com.bankmega.certification.dto.EmployeeCertificationResponse;
+import com.bankmega.certification.dto.EmployeeCertificationHistoryResponse;
+import com.bankmega.certification.service.CertificationProcessLogService;
 import com.bankmega.certification.service.EmployeeCertificationService;
+import com.bankmega.certification.service.FileStorageService;
+import com.bankmega.certification.service.EmployeeCertificationHistoryService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.*;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -17,6 +25,9 @@ import java.util.List;
 public class EmployeeCertificationController {
 
     private final EmployeeCertificationService service;
+    private final FileStorageService fileStorageService;
+    private final CertificationProcessLogService logService;
+    private final EmployeeCertificationHistoryService historyService;
 
     // ================== Paging + Filter ==================
     @GetMapping
@@ -58,7 +69,6 @@ public class EmployeeCertificationController {
         );
     }
 
-
     // ================== Detail ==================
     @GetMapping("/{id}")
     public EmployeeCertificationResponse getDetail(@PathVariable Long id) {
@@ -82,7 +92,41 @@ public class EmployeeCertificationController {
 
     // ================== Soft Delete ==================
     @DeleteMapping("/{id}")
-    public void softDelete(@PathVariable Long id) {
+    public ResponseEntity<Void> softDelete(@PathVariable Long id) {
         service.softDelete(id);
+        return ResponseEntity.ok().build();
+    }
+
+    // ================== Upload File ==================
+    @PostMapping("/{id}/upload")
+    public EmployeeCertificationResponse uploadCertificate(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file
+    ) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("File tidak boleh kosong");
+        }
+        return service.uploadCertificate(id, file);
+    }
+
+    // ================== Preview / Download File ==================
+    @GetMapping("/{id}/file")
+    public ResponseEntity<Resource> getCertificateFile(
+            @PathVariable Long id,
+            @RequestParam(value = "download", defaultValue = "false") boolean download
+    ) {
+        return fileStorageService.serveFile(id, download);
+    }
+
+    // ================== Logs ==================
+    @GetMapping("/{id}/logs")
+    public List<CertificationProcessLogResponse> getLogs(@PathVariable Long id) {
+        return logService.getLogs(id);
+    }
+
+    // ================== Histories ==================
+    @GetMapping("/{id}/histories")
+    public List<EmployeeCertificationHistoryResponse> getHistories(@PathVariable Long id) {
+        return historyService.getHistory(id);
     }
 }

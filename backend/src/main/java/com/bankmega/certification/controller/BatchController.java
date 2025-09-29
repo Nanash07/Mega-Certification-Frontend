@@ -9,6 +9,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -22,8 +23,12 @@ public class BatchController {
 
     // 🔹 Create
     @PostMapping
-    public ResponseEntity<BatchResponse> create(@RequestBody BatchRequest request) {
-        return ResponseEntity.ok(batchService.create(request));
+    public ResponseEntity<BatchResponse> create(
+            @RequestBody BatchRequest request,
+            Authentication authentication
+    ) {
+        String username = authentication.getName(); // ambil username dari JWT
+        return ResponseEntity.ok(batchService.create(request, username));
     }
 
     // 🔹 Search + Filter + Paging
@@ -37,7 +42,9 @@ public class BatchController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             Pageable pageable
     ) {
-        return ResponseEntity.ok(batchService.search(search, status, certificationRuleId, institutionId, startDate, endDate, pageable));
+        return ResponseEntity.ok(batchService.search(
+                search, status, certificationRuleId, institutionId, startDate, endDate, pageable
+        ));
     }
 
     // 🔹 Get by ID
@@ -48,14 +55,23 @@ public class BatchController {
 
     // 🔹 Update
     @PutMapping("/{id}")
-    public ResponseEntity<BatchResponse> update(@PathVariable Long id, @RequestBody BatchRequest request) {
-        return ResponseEntity.ok(batchService.update(id, request));
+    public ResponseEntity<BatchResponse> update(
+            @PathVariable Long id,
+            @RequestBody BatchRequest request,
+            Authentication authentication
+    ) {
+        String username = authentication.getName();
+        return ResponseEntity.ok(batchService.update(id, request, username));
     }
 
     // 🔹 Delete (soft delete)
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        batchService.delete(id);
+    public ResponseEntity<Void> delete(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        String username = authentication.getName();
+        batchService.delete(id, username);
         return ResponseEntity.noContent().build();
     }
 }

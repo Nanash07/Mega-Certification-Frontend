@@ -272,56 +272,63 @@ public class EmployeeEligibilityService {
         List<CertificationRule> manualRules = exceptionRuleMap.getOrDefault(employee.getId(), List.of());
 
         List<EmployeeEligibility> existingElig = eligibilityRepo.findByEmployeeAndDeletedAtIsNull(employee);
-
-        Set<String> activeKeys = new HashSet<>();
-        mappingRules.forEach(r -> activeKeys.add(r.getId() + "-BY_JOB"));
-        manualRules.forEach(r -> activeKeys.add(r.getId() + "-BY_NAME"));
-
         List<EmployeeEligibility> toSave = new ArrayList<>();
 
-        // nonaktifkan eligibility yang tidak relevan lagi
+        // 🔹 Kumpulan semua rule yang harus dimiliki (gabungan job + exception)
+        Set<Long> requiredRuleIds = new HashSet<>();
+        mappingRules.forEach(r -> requiredRuleIds.add(r.getId()));
+        manualRules.forEach(r -> requiredRuleIds.add(r.getId()));
+
+        // 🔹 Nonaktifkan eligibility yang tidak relevan lagi
         for (EmployeeEligibility ee : existingElig) {
-            String key = ee.getCertificationRule().getId() + "-" + ee.getSource().name();
-            if (!activeKeys.contains(key)) {
+            if (!requiredRuleIds.contains(ee.getCertificationRule().getId())) {
                 ee.setIsActive(false);
                 ee.setDeletedAt(Instant.now());
                 toSave.add(ee);
             }
         }
 
-        // eligibility dari job mapping
-        for (CertificationRule rule : mappingRules) {
-            EmployeeEligibility eligibility = eligibilityRepo
-                    .findByEmployeeAndCertificationRuleAndSource(employee, rule, EmployeeEligibility.EligibilitySource.BY_JOB)
-                    .orElseGet(EmployeeEligibility::new);
+        // 🔹 Sinkronisasi eligibility per rule (prioritas EXCEPTION > JOB)
+        for (Long ruleId : requiredRuleIds) {
+            CertificationRule rule = null;
+            // cari rule object dari mapping/exception
+            for (CertificationRule r : manualRules) {
+                if (r.getId().equals(ruleId)) {
+                    rule = r;
+                    break;
+                }
+            }
+            if (rule == null) {
+                for (CertificationRule r : mappingRules) {
+                    if (r.getId().equals(ruleId)) {
+                        rule = r;
+                        break;
+                    }
+                }
+            }
+
+            if (rule == null) continue; // safety net
+
+            // cek existing eligibility untuk employee + rule
+            Optional<EmployeeEligibility> existingOpt = existingElig.stream()
+                    .filter(ee -> ee.getCertificationRule().getId().equals(ruleId))
+                    .findFirst();
+
+            EmployeeEligibility eligibility = existingOpt.orElseGet(EmployeeEligibility::new);
 
             eligibility.setEmployee(employee);
             eligibility.setCertificationRule(rule);
-            eligibility.setSource(EmployeeEligibility.EligibilitySource.BY_JOB);
+            // 🚩 kalau ada exception untuk rule ini → BY_NAME, kalau nggak → BY_JOB
+            if (manualRules.stream().anyMatch(r -> r.getId().equals(ruleId))) {
+                eligibility.setSource(EmployeeEligibility.EligibilitySource.BY_NAME);
+            } else {
+                eligibility.setSource(EmployeeEligibility.EligibilitySource.BY_JOB);
+            }
+
             if (eligibility.getStatus() == null) {
                 eligibility.setStatus(EmployeeEligibility.EligibilityStatus.NOT_YET_CERTIFIED);
             }
-            eligibility.setIsActive(true);
-            eligibility.setDeletedAt(null);
-            eligibility.setValidityMonths(rule.getValidityMonths());
-            eligibility.setReminderMonths(rule.getReminderMonths());
-            eligibility.setWajibSetelahMasuk(rule.getWajibSetelahMasuk());
 
-            toSave.add(eligibility);
-        }
-
-        // eligibility manual (BY_NAME)
-        for (CertificationRule rule : manualRules) {
-            EmployeeEligibility eligibility = eligibilityRepo
-                    .findByEmployeeAndCertificationRuleAndSource(employee, rule, EmployeeEligibility.EligibilitySource.BY_NAME)
-                    .orElseGet(EmployeeEligibility::new);
-
-            eligibility.setEmployee(employee);
-            eligibility.setCertificationRule(rule);
-            eligibility.setSource(EmployeeEligibility.EligibilitySource.BY_NAME);
-            if (eligibility.getStatus() == null) {
-                eligibility.setStatus(EmployeeEligibility.EligibilityStatus.NOT_YET_CERTIFIED);
-            }
             eligibility.setIsActive(true);
             eligibility.setDeletedAt(null);
             eligibility.setValidityMonths(rule.getValidityMonths());
@@ -333,6 +340,8 @@ public class EmployeeEligibilityService {
 
         return toSave;
     }
+
+
 
     // ===================== SYNC WITH CERTIFICATIONS =====================
     private void syncWithCertifications(List<Employee> employees) {

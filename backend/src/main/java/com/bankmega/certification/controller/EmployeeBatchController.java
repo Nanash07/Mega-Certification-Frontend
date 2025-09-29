@@ -7,6 +7,7 @@ import com.bankmega.certification.service.EmployeeBatchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,7 +25,18 @@ public class EmployeeBatchController {
         return service.getByBatch(batchId);
     }
 
-    // 🔹 Search + filter + paging
+    // 🔹 Ambil peserta batch dengan paging (recommended FE pakai ini)
+    @GetMapping("/batch/{batchId}/paged")
+    public ResponseEntity<Page<EmployeeBatchResponse>> getPagedByBatch(
+            @PathVariable Long batchId,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) EmployeeBatch.Status status,
+            Pageable pageable
+    ) {
+        return ResponseEntity.ok(service.search(batchId, search, status, pageable));
+    }
+
+    // 🔹 Search global (optional)
     @GetMapping
     public Page<EmployeeBatchResponse> search(
             @RequestParam(required = false) Long batchId,
@@ -35,7 +47,7 @@ public class EmployeeBatchController {
         return service.search(batchId, search, status, pageable);
     }
 
-    // 🔹 Tambah peserta
+    // 🔹 Tambah peserta single
     @PostMapping("/batch/{batchId}/employee/{employeeId}")
     public EmployeeBatchResponse addParticipant(
             @PathVariable Long batchId,
@@ -44,7 +56,16 @@ public class EmployeeBatchController {
         return service.addParticipant(batchId, employeeId);
     }
 
-    // 🔹 Update status
+    // 🔹 Tambah peserta bulk
+    @PostMapping("/batch/{batchId}/employees/bulk")
+    public ResponseEntity<List<EmployeeBatchResponse>> addParticipantsBulk(
+            @PathVariable Long batchId,
+            @RequestBody List<Long> employeeIds
+    ) {
+        return ResponseEntity.ok(service.addParticipantsBulk(batchId, employeeIds));
+    }
+
+    // 🔹 Update status peserta
     @PutMapping("/{id}/status")
     public EmployeeBatchResponse updateStatus(
             @PathVariable Long id,
@@ -61,7 +82,7 @@ public class EmployeeBatchController {
         service.removeParticipant(id);
     }
 
-    // 🔹 Eligible employees untuk batch (berdasarkan tabel eligibility)
+    // 🔹 Eligible employees untuk batch
     @GetMapping("/batch/{batchId}/eligible")
     public List<EmployeeEligibilityResponse> getEligibleForBatch(@PathVariable Long batchId) {
         return service.getEligibleEmployeesForBatch(batchId);

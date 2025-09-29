@@ -4,6 +4,7 @@ import com.bankmega.certification.entity.EmployeeBatch.Status;
 import lombok.*;
 
 import java.time.Instant;
+import java.time.LocalDate;
 
 @Getter
 @Setter
@@ -14,15 +15,25 @@ public class EmployeeBatchResponse {
 
     private Long id;
 
+    // 🔹 Data pegawai
     private Long employeeId;
     private String employeeNip;
     private String employeeName;
 
+    // 🔹 Data batch
     private Long batchId;
     private String batchName;
 
-    private Status status;  // ✅ Enum pakai EmployeeBatch.Status
+    // 🔹 Status peserta
+    private Status status;
 
+    // 🔹 Detail proses
+    private LocalDate registrationDate;
+    private LocalDate attendedAt;
+    private LocalDate resultDate;
+    private String notes;
+
+    // 🔹 Audit
     private Instant createdAt;
     private Instant updatedAt;
 }

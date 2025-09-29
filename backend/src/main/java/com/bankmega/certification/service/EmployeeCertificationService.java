@@ -10,6 +10,7 @@ import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -23,6 +24,8 @@ public class EmployeeCertificationService {
     private final EmployeeRepository employeeRepo;
     private final CertificationRuleRepository ruleRepo;
     private final InstitutionRepository institutionRepo;
+    private final FileStorageService fileStorageService;
+    private final CertificationProcessLogService logService;
 
     // ================== Mapper ==================
     private EmployeeCertificationResponse toResponse(EmployeeCertification ec) {
@@ -31,34 +34,24 @@ public class EmployeeCertificationService {
                 .employeeId(ec.getEmployee().getId())
                 .nip(ec.getEmployee().getNip())
                 .employeeName(ec.getEmployee().getName())
-                .jobPositionTitle(
-                        ec.getEmployee().getJobPosition() != null
-                                ? ec.getEmployee().getJobPosition().getName()
-                                : null
-                )
+                .jobPositionTitle(ec.getEmployee().getJobPosition() != null
+                        ? ec.getEmployee().getJobPosition().getName()
+                        : null)
                 .certificationRuleId(ec.getCertificationRule().getId())
                 .certificationName(ec.getCertificationRule().getCertification().getName())
                 .certificationCode(ec.getCertificationRule().getCertification().getCode())
-                .certificationLevelName(
-                        ec.getCertificationRule().getCertificationLevel() != null
-                                ? ec.getCertificationRule().getCertificationLevel().getName()
-                                : null
-                )
-                .certificationLevelLevel(
-                        ec.getCertificationRule().getCertificationLevel() != null
-                                ? ec.getCertificationRule().getCertificationLevel().getLevel()
-                                : null
-                )
-                .subFieldCode(
-                        ec.getCertificationRule().getSubField() != null
-                                ? ec.getCertificationRule().getSubField().getCode()
-                                : null
-                )
-                .subFieldName(
-                        ec.getCertificationRule().getSubField() != null
-                                ? ec.getCertificationRule().getSubField().getName()
-                                : null
-                )
+                .certificationLevelName(ec.getCertificationRule().getCertificationLevel() != null
+                        ? ec.getCertificationRule().getCertificationLevel().getName()
+                        : null)
+                .certificationLevelLevel(ec.getCertificationRule().getCertificationLevel() != null
+                        ? ec.getCertificationRule().getCertificationLevel().getLevel()
+                        : null)
+                .subFieldCode(ec.getCertificationRule().getSubField() != null
+                        ? ec.getCertificationRule().getSubField().getCode()
+                        : null)
+                .subFieldName(ec.getCertificationRule().getSubField() != null
+                        ? ec.getCertificationRule().getSubField().getName()
+                        : null)
                 .institutionId(ec.getInstitution() != null ? ec.getInstitution().getId() : null)
                 .institutionName(ec.getInstitution() != null ? ec.getInstitution().getName() : null)
                 .certNumber(ec.getCertNumber())
@@ -67,6 +60,8 @@ public class EmployeeCertificationService {
                 .validUntil(ec.getValidUntil())
                 .reminderDate(ec.getReminderDate())
                 .fileUrl(ec.getFileUrl())
+                .fileName(ec.getFileName())
+                .fileType(ec.getFileType())
                 .status(ec.getStatus())
                 .processType(ec.getProcessType())
                 .createdAt(ec.getCreatedAt())
@@ -77,15 +72,13 @@ public class EmployeeCertificationService {
 
     // ================== Helpers ==================
     private void updateValidity(EmployeeCertification ec) {
-        LocalDate certDate = ec.getCertDate();
-        if (certDate != null) {
-            ec.setValidFrom(certDate);
+        if (ec.getCertDate() != null) {
+            ec.setValidFrom(ec.getCertDate());
+
             CertificationRule rule = ec.getCertificationRule();
-
             if (rule != null && rule.getValidityMonths() != null) {
-                ec.setValidUntil(certDate.plusMonths(rule.getValidityMonths()));
+                ec.setValidUntil(ec.getCertDate().plusMonths(rule.getValidityMonths()));
             }
-
             if (rule != null && rule.getReminderMonths() != null && ec.getValidUntil() != null) {
                 ec.setReminderDate(ec.getValidUntil().minusMonths(rule.getReminderMonths()));
             }
@@ -94,6 +87,12 @@ public class EmployeeCertificationService {
 
     private void updateStatus(EmployeeCertification ec) {
         LocalDate today = LocalDate.now();
+
+        if (ec.getCertNumber() == null || ec.getCertNumber().isBlank()
+                || ec.getFileUrl() == null || ec.getFileUrl().isBlank()) {
+            ec.setStatus(EmployeeCertification.Status.PENDING);
+            return;
+        }
 
         if (ec.getValidUntil() == null) {
             ec.setStatus(EmployeeCertification.Status.NOT_YET_CERTIFIED);
@@ -119,7 +118,6 @@ public class EmployeeCertificationService {
                 ? institutionRepo.findById(req.getInstitutionId()).orElse(null)
                 : null;
 
-        // 🔹 Cek duplikat
         repo.findFirstByEmployeeIdAndCertificationRuleIdAndDeletedAtIsNull(employee.getId(), rule.getId())
                 .ifPresent(ec -> {
                     throw new RuntimeException("Certification already exists for this employee & rule");
@@ -131,9 +129,7 @@ public class EmployeeCertificationService {
                 .institution(institution)
                 .certNumber(req.getCertNumber())
                 .certDate(req.getCertDate())
-                .fileUrl(req.getFileUrl())
                 .processType(req.getProcessType())
-                .status(EmployeeCertification.Status.NOT_YET_CERTIFIED)
                 .createdAt(Instant.now())
                 .updatedAt(Instant.now())
                 .build();
@@ -141,7 +137,10 @@ public class EmployeeCertificationService {
         updateValidity(ec);
         updateStatus(ec);
 
-        return toResponse(repo.save(ec));
+        EmployeeCertification saved = repo.save(ec);
+        logService.log(saved, CertificationProcessLog.ProcessType.REGISTERED, "Certification created");
+
+        return toResponse(saved);
     }
 
     // ================== Update ==================
@@ -163,14 +162,16 @@ public class EmployeeCertificationService {
 
         ec.setCertNumber(req.getCertNumber());
         ec.setCertDate(req.getCertDate());
-        ec.setFileUrl(req.getFileUrl());
         ec.setProcessType(req.getProcessType());
         ec.setUpdatedAt(Instant.now());
 
         updateValidity(ec);
         updateStatus(ec);
 
-        return toResponse(repo.save(ec));
+        EmployeeCertification saved = repo.save(ec);
+        logService.log(saved, CertificationProcessLog.ProcessType.PASSED, "Certification metadata updated");
+
+        return toResponse(saved);
     }
 
     // ================== Soft Delete ==================
@@ -178,10 +179,35 @@ public class EmployeeCertificationService {
     public void softDelete(Long id) {
         EmployeeCertification ec = repo.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new RuntimeException("Certification not found"));
+
         ec.setDeletedAt(Instant.now());
         ec.setStatus(EmployeeCertification.Status.INVALID);
         ec.setUpdatedAt(Instant.now());
+
         repo.save(ec);
+        logService.log(ec, CertificationProcessLog.ProcessType.FAILED, "Certification soft deleted");
+    }
+
+    // ================== Upload Certificate ==================
+    @Transactional
+    public EmployeeCertificationResponse uploadCertificate(Long id, MultipartFile file) {
+        EmployeeCertification ec = repo.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new RuntimeException("Certification not found"));
+
+        String fileUrl = fileStorageService.save(id, file);
+
+        ec.setFileUrl(fileUrl);
+        ec.setFileName(file.getOriginalFilename());
+        ec.setFileType(file.getContentType());
+        ec.setUpdatedAt(Instant.now());
+
+        updateStatus(ec);
+
+        EmployeeCertification saved = repo.save(ec);
+        logService.log(saved, CertificationProcessLog.ProcessType.UPLOAD_CERTIFICATE,
+                "File uploaded: " + file.getOriginalFilename());
+
+        return toResponse(saved);
     }
 
     // ================== Detail ==================
@@ -209,15 +235,15 @@ public class EmployeeCertificationService {
             Pageable pageable
     ) {
         Specification<EmployeeCertification> spec = EmployeeCertificationSpecification.notDeleted()
-            .and(EmployeeCertificationSpecification.byEmployeeIds(employeeIds))
-            .and(EmployeeCertificationSpecification.byCertCodes(certCodes))
-            .and(EmployeeCertificationSpecification.byLevels(levels))
-            .and(EmployeeCertificationSpecification.bySubCodes(subCodes))
-            .and(EmployeeCertificationSpecification.byInstitutionIds(institutionIds))
-            .and(EmployeeCertificationSpecification.byStatuses(statuses))
-            .and(EmployeeCertificationSpecification.bySearch(search))
-            .and(EmployeeCertificationSpecification.byCertDateRange(certDateStart, certDateEnd))   // 🔥 NEW
-            .and(EmployeeCertificationSpecification.byValidUntilRange(validUntilStart, validUntilEnd)); // 🔥 NEW
+                .and(EmployeeCertificationSpecification.byEmployeeIds(employeeIds))
+                .and(EmployeeCertificationSpecification.byCertCodes(certCodes))
+                .and(EmployeeCertificationSpecification.byLevels(levels))
+                .and(EmployeeCertificationSpecification.bySubCodes(subCodes))
+                .and(EmployeeCertificationSpecification.byInstitutionIds(institutionIds))
+                .and(EmployeeCertificationSpecification.byStatuses(statuses))
+                .and(EmployeeCertificationSpecification.bySearch(search))
+                .and(EmployeeCertificationSpecification.byCertDateRange(certDateStart, certDateEnd))
+                .and(EmployeeCertificationSpecification.byValidUntilRange(validUntilStart, validUntilEnd));
 
         return repo.findAll(spec, pageable).map(this::toResponse);
     }

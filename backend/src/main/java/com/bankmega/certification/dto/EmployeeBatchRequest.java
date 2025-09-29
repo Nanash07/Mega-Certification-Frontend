@@ -1,5 +1,7 @@
 package com.bankmega.certification.dto;
 
+import java.util.List;
+
 import lombok.*;
 
 @Getter
@@ -8,6 +10,7 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class EmployeeBatchRequest {
+    private List<Long> employeeIds;
     private Long employeeId;
     private Long batchId;
 }

@@ -55,6 +55,6 @@ public class CertificationProcessLog {
         PASSED,              // dinyatakan lulus
         FAILED,              // dinyatakan gagal
         UPLOAD_CERTIFICATE,  // upload sertifikat resmi
-        REFRESHMENT          // ikut refreshment
+        REFRESHMENT,         // ikut refreshment
     }
 }

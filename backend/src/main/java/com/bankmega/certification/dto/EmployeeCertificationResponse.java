@@ -40,7 +40,10 @@ public class EmployeeCertificationResponse {
     private LocalDate validFrom;     // Berlaku dari
     private LocalDate validUntil;    // Berlaku sampai
     private LocalDate reminderDate;  // Tanggal mulai reminder
+    
     private String fileUrl;
+    private String fileName;   // Nama asli file
+    private String fileType;
 
     private EmployeeCertification.Status status;
     private EmployeeCertification.ProcessType processType;

@@ -4,10 +4,12 @@ import com.bankmega.certification.dto.BatchRequest;
 import com.bankmega.certification.dto.BatchResponse;
 import com.bankmega.certification.entity.Batch;
 import com.bankmega.certification.entity.CertificationRule;
+import com.bankmega.certification.entity.EmployeeBatch;
 import com.bankmega.certification.entity.Institution;
 import com.bankmega.certification.exception.NotFoundException;
 import com.bankmega.certification.repository.BatchRepository;
 import com.bankmega.certification.repository.CertificationRuleRepository;
+import com.bankmega.certification.repository.EmployeeBatchRepository;
 import com.bankmega.certification.repository.InstitutionRepository;
 import com.bankmega.certification.specification.BatchSpecification;
 import lombok.RequiredArgsConstructor;
@@ -25,22 +27,60 @@ public class BatchService {
     private final BatchRepository batchRepository;
     private final CertificationRuleRepository certificationRuleRepository;
     private final InstitutionRepository institutionRepository;
+    private final EmployeeBatchRepository employeeBatchRepository;
+
+    // =======================
+    // 🔹 Quota Validation
+    // =======================
+    private void validateQuota(Integer quota) {
+        if (quota != null) {
+            if (quota < 1) {
+                throw new IllegalArgumentException("Quota minimal 1 peserta");
+            }
+            if (quota > 250) {
+                throw new IllegalArgumentException("Quota maksimal 250 peserta");
+            }
+        }
+    }
 
     // 🔹 Create
-    public BatchResponse create(BatchRequest request) {
+    public BatchResponse create(BatchRequest request, String createdBy) {
+        validateQuota(request.getQuota()); // ✅ validasi quota
+
         Batch batch = fromRequest(request);
+        batch.setCreatedAt(Instant.now());
+        batch.setUpdatedAt(Instant.now());
         return toResponse(batchRepository.save(batch));
     }
 
-    // 🔹 Update
-    public BatchResponse update(Long id, BatchRequest request) {
+    // 🔹 Update (dengan validasi status transisi)
+    public BatchResponse update(Long id, BatchRequest request, String updatedBy) {
         Batch existing = batchRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new NotFoundException("Batch not found with id " + id));
 
-        Batch updated = fromRequest(request);
-        updated.setId(existing.getId()); // preserve ID
+        validateQuota(request.getQuota()); // ✅ validasi quota
 
-        return toResponse(batchRepository.save(updated));
+        CertificationRule rule = certificationRuleRepository.findById(request.getCertificationRuleId())
+                .orElseThrow(() -> new NotFoundException("CertificationRule not found"));
+
+        Institution institution = null;
+        if (request.getInstitutionId() != null) {
+            institution = institutionRepository.findById(request.getInstitutionId())
+                    .orElseThrow(() -> new NotFoundException("Institution not found"));
+        }
+
+        existing.setBatchName(request.getBatchName());
+        existing.setCertificationRule(rule);
+        existing.setInstitution(institution);
+        existing.setStartDate(request.getStartDate());
+        existing.setEndDate(request.getEndDate());
+        existing.setQuota(request.getQuota());
+        existing.setStatus(request.getStatus());
+        existing.setNotes(request.getNotes());
+
+        existing.setUpdatedAt(Instant.now());
+
+        return toResponse(batchRepository.save(existing));
     }
 
     // 🔹 Get by ID
@@ -50,10 +90,11 @@ public class BatchService {
     }
 
     // 🔹 Soft Delete
-    public void delete(Long id) {
+    public void delete(Long id, String deletedBy) {
         Batch existing = batchRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new NotFoundException("Batch not found with id " + id));
         existing.setDeletedAt(Instant.now());
+        existing.setUpdatedAt(Instant.now());
         batchRepository.save(existing);
     }
 
@@ -114,6 +155,11 @@ public class BatchService {
     private BatchResponse toResponse(Batch b) {
         CertificationRule rule = b.getCertificationRule();
 
+        long totalParticipants = employeeBatchRepository.countByBatch_IdAndDeletedAtIsNull(b.getId());
+        long totalPassed = employeeBatchRepository.countByBatch_IdAndStatusAndDeletedAtIsNull(
+                b.getId(), EmployeeBatch.Status.PASSED
+        );
+
         return BatchResponse.builder()
                 .id(b.getId())
                 .batchName(b.getBatchName())
@@ -154,6 +200,30 @@ public class BatchService {
                 .notes(b.getNotes())
                 .createdAt(b.getCreatedAt())
                 .updatedAt(b.getUpdatedAt())
+
+                .totalParticipants(totalParticipants)
+                .totalPassed(totalPassed)
                 .build();
+    }
+
+    // =======================
+    // 🔹 Status Transition Validator
+    // =======================
+    private void validateBatchStatusTransition(Batch.Status current, Batch.Status next) {
+        switch (current) {
+            case PLANNED -> {
+                if (!(next == Batch.Status.ONGOING || next == Batch.Status.CANCELED)) {
+                    throw new IllegalStateException("Batch PLANNED hanya bisa ke ONGOING atau CANCELED");
+                }
+            }
+            case ONGOING -> {
+                if (!(next == Batch.Status.FINISHED || next == Batch.Status.CANCELED)) {
+                    throw new IllegalStateException("Batch ONGOING hanya bisa ke FINISHED atau CANCELED");
+                }
+            }
+            case FINISHED, CANCELED -> {
+                throw new IllegalStateException("Batch FINISHED/CANCELED tidak bisa diubah lagi");
+            }
+        }
     }
 }

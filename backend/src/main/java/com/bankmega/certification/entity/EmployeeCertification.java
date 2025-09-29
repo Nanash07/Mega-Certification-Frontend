@@ -1,9 +1,11 @@
 package com.bankmega.certification.entity;
 
 import jakarta.persistence.*;
-import jakarta.persistence.Id;
 import lombok.*;
-import org.springframework.data.annotation.*;
+import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedBy;
+import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
@@ -24,17 +26,17 @@ public class EmployeeCertification {
     private Long id;
 
     // 🔹 Relasi ke Employee
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id", nullable = false)
     private Employee employee;
 
     // 🔹 Relasi ke CertificationRule
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "certification_rule_id", nullable = false)
     private CertificationRule certificationRule;
 
     // 🔹 Lembaga penyelenggara (optional)
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "institution_id")
     private Institution institution;
 
@@ -53,8 +55,14 @@ public class EmployeeCertification {
     @Column(name = "reminder_date")
     private LocalDate reminderDate;
 
-    @Column(name = "file_url", length = 255)
+    @Column(name = "file_url", length = 500) // kasih lebih panjang biar aman
     private String fileUrl;
+
+    @Column(name = "file_name", length = 255)
+    private String fileName;
+
+    @Column(name = "file_type", length = 50)
+    private String fileType;
 
     @Enumerated(EnumType.STRING)
     @Column(length = 30, nullable = false)
@@ -66,7 +74,7 @@ public class EmployeeCertification {
 
     // 🔹 Audit fields pakai Instant
     @CreatedDate
-    @Column(name = "created_at", updatable = false)
+    @Column(name = "created_at", updatable = false, nullable = false)
     private Instant createdAt;
 
     @LastModifiedDate
@@ -78,14 +86,15 @@ public class EmployeeCertification {
 
     @CreatedBy
     @Column(name = "created_by", updatable = false)
-    private Long createdBy;
+    private String createdBy; // biasanya string username biar gampang audit
 
     @LastModifiedBy
     @Column(name = "updated_by")
-    private Long updatedBy;
+    private String updatedBy;
 
     public enum Status {
         NOT_YET_CERTIFIED,
+        PENDING,
         ACTIVE,
         DUE,
         EXPIRED,
