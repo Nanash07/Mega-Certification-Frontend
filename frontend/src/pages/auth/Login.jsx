@@ -12,7 +12,7 @@ const Login = () => {
 
         try {
             // Call API ke backend lo
-            const res = await axios.post("https://4c247b1984ba.ngrok-free.app/api/auth/login", {
+            const res = await axios.post(" https://e4af0af28785.ngrok-free.app/api/auth/login", {
                 username,
                 password,
             });
