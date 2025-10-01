@@ -270,7 +270,17 @@ export default function EmployeeCertificationPage() {
                                 <tr key={r.id}>
                                     <td>{startIdx + idx}</td>
                                     <td>{r.nip}</td>
-                                    <td>{r.employeeName}</td>
+
+                                    {/* 🔹 Nama Pegawai jadi link ke halaman detail */}
+                                    <td>
+                                        <a
+                                            href={`/employee/${r.employeeId}`}
+                                            className="hover:text-secondary underline"
+                                        >
+                                            {r.employeeName}
+                                        </a>
+                                    </td>
+
                                     <td>{r.jobPositionTitle || "-"}</td>
                                     <td>{r.certificationCode}</td>
                                     <td>{r.certificationLevelLevel || "-"}</td>
@@ -334,6 +344,8 @@ export default function EmployeeCertificationPage() {
                                               })
                                             : "-"}
                                     </td>
+
+                                    {/* 🔹 Kolom aksi (hapus tombol "Lihat") */}
                                     <td className="whitespace-nowrap space-x-1">
                                         <button
                                             className="btn btn-xs border-warning btn-soft btn-warning"
@@ -355,16 +367,7 @@ export default function EmployeeCertificationPage() {
                                                 Upload
                                             </button>
                                         )}
-                                        {r.fileUrl && (
-                                            <>
-                                                <button
-                                                    className="btn btn-xs border-primary btn-soft btn-primary"
-                                                    onClick={() => setViewData(r)}
-                                                >
-                                                    Lihat
-                                                </button>
-                                            </>
-                                        )}
+                                        {/* 🔹 Tombol "Lihat" dihapus */}
                                     </td>
                                 </tr>
                             ))

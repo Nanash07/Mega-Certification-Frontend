@@ -97,6 +97,27 @@ public class FileStorageService {
         }
     }
 
+    // ================== DELETE ==================
+    public void deleteCertificate(Long certificationId) {
+        EmployeeCertification ec = certificationRepo.findById(certificationId)
+                .orElseThrow(() -> new RuntimeException("Certification not found"));
+
+        if (ec.getFileUrl() != null) {
+            Path filePath = Paths.get(STORAGE_DIR).resolve(ec.getFileUrl());
+            try {
+                Files.deleteIfExists(filePath);
+            } catch (IOException e) {
+                throw new RuntimeException("Gagal menghapus file dari storage", e);
+            }
+        }
+
+        // Reset info file di entity
+        ec.setFileUrl(null);
+        ec.setFileName(null);
+        ec.setFileType(null);
+        certificationRepo.save(ec);
+    }
+
     // ================== SERVE FILE (Preview / Download) ==================
     public ResponseEntity<Resource> serveFile(Long certificationId, boolean download) {
         EmployeeCertification ec = certificationRepo.findById(certificationId)
@@ -117,9 +138,9 @@ public class FileStorageService {
             String fileNameToUse = download ? ec.getFileUrl() : ec.getFileName();
 
             String contentDisposition = download
-                ? "attachment; filename=\"" + fileNameToUse + "\""
-                : "inline; filename=\"" + fileNameToUse + "\"";
-                
+                    ? "attachment; filename=\"" + fileNameToUse + "\""
+                    : "inline; filename=\"" + fileNameToUse + "\"";
+
             return ResponseEntity.ok()
                     .contentType(MediaType.parseMediaType(
                             ec.getFileType() != null ? ec.getFileType() : "image/jpeg"))

@@ -78,6 +78,34 @@ export async function uploadCertificationFile(id, file, onUploadProgress) {
     }
 }
 
+// 🔹 Reupload file sertifikat
+export async function reuploadCertificationFile(id, file, onUploadProgress) {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+        const { data } = await api.post(`${BASE_URL}/${id}/reupload`, formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+            onUploadProgress,
+        });
+        return data;
+    } catch (err) {
+        console.error("reuploadCertificationFile error:", err);
+        throw err;
+    }
+}
+
+// 🔹 Hapus file sertifikat
+export async function deleteCertificationFile(id) {
+    try {
+        await api.delete(`${BASE_URL}/${id}/certificate`);
+        return true;
+    } catch (err) {
+        console.error("deleteCertificationFile error:", err);
+        throw err;
+    }
+}
+
 // 🔹 Lihat file sertifikat (preview inline)
 export async function viewCertificationFile(id) {
     try {

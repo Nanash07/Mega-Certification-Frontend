@@ -38,12 +38,13 @@ public class EmployeeCertificationHistory {
     @Column(name = "action_at", nullable = false, updatable = false)
     private Instant actionAt;
 
-    @Column(name = "action_by", length = 100)
-    private String actionBy; // username / email PIC yang trigger
-
     public enum ActionType {
         CREATED,
         UPDATED,
-        DELETED
+        DELETED,
+        UPLOAD_CERTIFICATE,
+        REUPLOAD_CERTIFICATE,
+        DELETE_CERTIFICATE
     }
+
 }

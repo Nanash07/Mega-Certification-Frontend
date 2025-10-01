@@ -9,7 +9,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -17,19 +19,30 @@ import java.util.stream.Collectors;
 public class EmployeeCertificationHistoryService {
 
     private final EmployeeCertificationHistoryRepository historyRepo;
-    private final ObjectMapper objectMapper; // ✅ inject dari Spring
+    private final ObjectMapper objectMapper;
 
-    public void saveHistory(EmployeeCertification ec, EmployeeCertificationHistory.ActionType actionType, String actionBy) {
+    // ================== SNAPSHOT ==================
+    public void snapshot(EmployeeCertification ec, EmployeeCertificationHistory.ActionType actionType) {
         try {
-            // simpan snapshot JSON dari entity
-            String snapshot = objectMapper.writeValueAsString(ec);
+            // 🔹 Build snapshot minimalis (hindari lazy loading error)
+            Map<String, Object> snapshotMap = new HashMap<>();
+            snapshotMap.put("employeeId", ec.getEmployee().getId());
+            snapshotMap.put("nip", ec.getEmployee().getNip());
+            snapshotMap.put("employeeName", ec.getEmployee().getName());
+            snapshotMap.put("certificationCode", ec.getCertificationRule().getCertification().getCode());
+            snapshotMap.put("certNumber", ec.getCertNumber());
+            snapshotMap.put("certDate", ec.getCertDate());
+            snapshotMap.put("validUntil", ec.getValidUntil());
+            snapshotMap.put("status", ec.getStatus());
+            snapshotMap.put("fileUrl", ec.getFileUrl());
+
+            String snapshotJson = objectMapper.writeValueAsString(snapshotMap);
 
             EmployeeCertificationHistory history = EmployeeCertificationHistory.builder()
                     .employeeCertification(ec)
-                    .snapshot(snapshot)
+                    .snapshot(snapshotJson)
                     .actionType(actionType)
-                    .actionAt(Instant.now()) // bisa diganti audit otomatis
-                    .actionBy(actionBy)
+                    .actionAt(Instant.now())
                     .build();
 
             historyRepo.save(history);
@@ -38,6 +51,7 @@ public class EmployeeCertificationHistoryService {
         }
     }
 
+    // ================== GET HISTORY ==================
     public List<EmployeeCertificationHistoryResponse> getHistory(Long certificationId) {
         return historyRepo.findByEmployeeCertificationIdOrderByActionAtDesc(certificationId)
                 .stream()
@@ -47,7 +61,6 @@ public class EmployeeCertificationHistoryService {
                         .snapshot(h.getSnapshot())
                         .actionType(h.getActionType())
                         .actionAt(h.getActionAt())
-                        .actionBy(h.getActionBy())
                         .build())
                 .collect(Collectors.toList());
     }

@@ -94,7 +94,7 @@ public class EmployeeCertificationController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> softDelete(@PathVariable Long id) {
         service.softDelete(id);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
     // ================== Upload File ==================
@@ -107,6 +107,25 @@ public class EmployeeCertificationController {
             throw new IllegalArgumentException("File tidak boleh kosong");
         }
         return service.uploadCertificate(id, file);
+    }
+
+    // ================== Reupload File ==================
+    @PostMapping("/{id}/reupload")
+    public EmployeeCertificationResponse reuploadCertificate(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file
+    ) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("File tidak boleh kosong");
+        }
+        return service.reuploadCertificate(id, file);
+    }
+
+    // ================== Delete File ==================
+    @DeleteMapping("/{id}/certificate")
+    public ResponseEntity<Void> deleteCertificate(@PathVariable Long id) {
+        service.deleteCertificate(id); // ✅ lewat service biar status/history ke-record
+        return ResponseEntity.noContent().build();
     }
 
     // ================== Preview / Download File ==================

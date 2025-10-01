@@ -16,5 +16,4 @@ public class EmployeeCertificationHistoryResponse {
     private String snapshot; // JSON snapshot
     private EmployeeCertificationHistory.ActionType actionType;
     private Instant actionAt;
-    private String actionBy;
 }

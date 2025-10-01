@@ -50,11 +50,14 @@ public class CertificationProcessLog {
     private Instant updatedAt;
 
     public enum ProcessType {
-        REGISTERED,          // daftar batch
-        ATTENDED,            // hadir ujian
-        PASSED,              // dinyatakan lulus
-        FAILED,              // dinyatakan gagal
-        UPLOAD_CERTIFICATE,  // upload sertifikat resmi
-        REFRESHMENT,         // ikut refreshment
+        REGISTERED,           // daftar batch
+        ATTENDED,             // hadir ujian
+        PASSED,               // dinyatakan lulus
+        FAILED,               // dinyatakan gagal
+        UPLOAD_CERTIFICATE,   // upload sertifikat resmi
+        REUPLOAD_CERTIFICATE, // upload ulang sertifikat
+        DELETE_CERTIFICATE,   // hapus sertifikat
+        REFRESHMENT           // ikut refreshment
     }
+
 }

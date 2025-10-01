@@ -2,9 +2,7 @@ package com.bankmega.certification.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
@@ -29,6 +27,10 @@ public class EmployeeCertification {
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id", nullable = false)
     private Employee employee;
+
+    // 🔹 Snapshot nama jabatan saat sertifikat dibuat
+    @Column(name = "job_position_title", length = 200)
+    private String jobPositionTitle;
 
     // 🔹 Relasi ke CertificationRule
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
@@ -55,7 +57,7 @@ public class EmployeeCertification {
     @Column(name = "reminder_date")
     private LocalDate reminderDate;
 
-    @Column(name = "file_url", length = 500) // kasih lebih panjang biar aman
+    @Column(name = "file_url", length = 500) 
     private String fileUrl;
 
     @Column(name = "file_name", length = 255)
@@ -72,7 +74,7 @@ public class EmployeeCertification {
     @Column(name = "process_type", length = 30)
     private ProcessType processType;
 
-    // 🔹 Audit fields pakai Instant
+    // 🔹 Audit fields
     @CreatedDate
     @Column(name = "created_at", updatable = false, nullable = false)
     private Instant createdAt;
@@ -83,14 +85,6 @@ public class EmployeeCertification {
 
     @Column(name = "deleted_at")
     private Instant deletedAt;
-
-    @CreatedBy
-    @Column(name = "created_by", updatable = false)
-    private String createdBy; // biasanya string username biar gampang audit
-
-    @LastModifiedBy
-    @Column(name = "updated_by")
-    private String updatedBy;
 
     public enum Status {
         NOT_YET_CERTIFIED,

@@ -26,6 +26,7 @@ public class EmployeeCertificationService {
     private final InstitutionRepository institutionRepo;
     private final FileStorageService fileStorageService;
     private final CertificationProcessLogService logService;
+    private final EmployeeCertificationHistoryService historyService;
 
     // ================== Mapper ==================
     private EmployeeCertificationResponse toResponse(EmployeeCertification ec) {
@@ -34,9 +35,7 @@ public class EmployeeCertificationService {
                 .employeeId(ec.getEmployee().getId())
                 .nip(ec.getEmployee().getNip())
                 .employeeName(ec.getEmployee().getName())
-                .jobPositionTitle(ec.getEmployee().getJobPosition() != null
-                        ? ec.getEmployee().getJobPosition().getName()
-                        : null)
+                .jobPositionTitle(ec.getJobPositionTitle()) // ✅ pakai snapshot
                 .certificationRuleId(ec.getCertificationRule().getId())
                 .certificationName(ec.getCertificationRule().getCertification().getName())
                 .certificationCode(ec.getCertificationRule().getCertification().getCode())
@@ -130,6 +129,9 @@ public class EmployeeCertificationService {
                 .certNumber(req.getCertNumber())
                 .certDate(req.getCertDate())
                 .processType(req.getProcessType())
+                .jobPositionTitle(employee.getJobPosition() != null 
+                        ? employee.getJobPosition().getName() 
+                        : null) // ✅ snapshot nama jabatan
                 .createdAt(Instant.now())
                 .updatedAt(Instant.now())
                 .build();
@@ -139,6 +141,7 @@ public class EmployeeCertificationService {
 
         EmployeeCertification saved = repo.save(ec);
         logService.log(saved, CertificationProcessLog.ProcessType.REGISTERED, "Certification created");
+        historyService.snapshot(saved, EmployeeCertificationHistory.ActionType.CREATED);
 
         return toResponse(saved);
     }
@@ -165,11 +168,14 @@ public class EmployeeCertificationService {
         ec.setProcessType(req.getProcessType());
         ec.setUpdatedAt(Instant.now());
 
+        // ❌ Jangan update jobPositionTitle, biarin tetap historical snapshot
+
         updateValidity(ec);
         updateStatus(ec);
 
         EmployeeCertification saved = repo.save(ec);
         logService.log(saved, CertificationProcessLog.ProcessType.PASSED, "Certification metadata updated");
+        historyService.snapshot(saved, EmployeeCertificationHistory.ActionType.UPDATED);
 
         return toResponse(saved);
     }
@@ -184,8 +190,9 @@ public class EmployeeCertificationService {
         ec.setStatus(EmployeeCertification.Status.INVALID);
         ec.setUpdatedAt(Instant.now());
 
-        repo.save(ec);
-        logService.log(ec, CertificationProcessLog.ProcessType.FAILED, "Certification soft deleted");
+        EmployeeCertification saved = repo.save(ec);
+        logService.log(saved, CertificationProcessLog.ProcessType.FAILED, "Certification soft deleted");
+        historyService.snapshot(saved, EmployeeCertificationHistory.ActionType.DELETED);
     }
 
     // ================== Upload Certificate ==================
@@ -206,8 +213,55 @@ public class EmployeeCertificationService {
         EmployeeCertification saved = repo.save(ec);
         logService.log(saved, CertificationProcessLog.ProcessType.UPLOAD_CERTIFICATE,
                 "File uploaded: " + file.getOriginalFilename());
+        historyService.snapshot(saved, EmployeeCertificationHistory.ActionType.UPLOAD_CERTIFICATE);
 
         return toResponse(saved);
+    }
+
+    // ================== Reupload Certificate ==================
+    @Transactional
+    public EmployeeCertificationResponse reuploadCertificate(Long id, MultipartFile file) {
+        EmployeeCertification ec = repo.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new RuntimeException("Certification not found"));
+
+        fileStorageService.deleteCertificate(id);
+
+        String fileUrl = fileStorageService.save(id, file);
+
+        ec.setFileUrl(fileUrl);
+        ec.setFileName(file.getOriginalFilename());
+        ec.setFileType(file.getContentType());
+        ec.setUpdatedAt(Instant.now());
+
+        updateStatus(ec);
+
+        EmployeeCertification saved = repo.save(ec);
+        logService.log(saved, CertificationProcessLog.ProcessType.REUPLOAD_CERTIFICATE,
+                "File reuploaded: " + file.getOriginalFilename());
+        historyService.snapshot(saved, EmployeeCertificationHistory.ActionType.REUPLOAD_CERTIFICATE);
+
+        return toResponse(saved);
+    }
+
+    // ================== Delete Certificate ==================
+    @Transactional
+    public void deleteCertificate(Long id) {
+        EmployeeCertification ec = repo.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new RuntimeException("Certification not found"));
+
+        fileStorageService.deleteCertificate(id);
+
+        ec.setFileUrl(null);
+        ec.setFileName(null);
+        ec.setFileType(null);
+        ec.setUpdatedAt(Instant.now());
+
+        updateStatus(ec);
+
+        EmployeeCertification saved = repo.save(ec);
+        logService.log(saved, CertificationProcessLog.ProcessType.DELETE_CERTIFICATE,
+                "Certificate file deleted");
+        historyService.snapshot(saved, EmployeeCertificationHistory.ActionType.DELETE_CERTIFICATE);
     }
 
     // ================== Detail ==================
