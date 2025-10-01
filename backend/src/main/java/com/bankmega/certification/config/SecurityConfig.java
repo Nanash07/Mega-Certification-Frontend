@@ -78,10 +78,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration c = new CorsConfiguration();
-        c.setAllowedOrigins(List.of(
-            "http://localhost:5173", 
-            "https://mega-certification-frontend.vercel.app"
-        ));
+        c.addAllowedOriginPattern("*");
         c.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         c.addAllowedHeader("*");
         c.setExposedHeaders(List.of("Location"));
