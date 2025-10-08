@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import Select from "react-select";
 import AsyncSelect from "react-select/async";
@@ -15,13 +16,13 @@ export default function EmployeeEligibilityPage() {
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
 
-    // 🔹 Pagination
+    // Pagination
     const [page, setPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [totalPages, setTotalPages] = useState(0);
     const [totalElements, setTotalElements] = useState(0);
 
-    // 🔹 Filters
+    // Filters
     const [jobOptions, setJobOptions] = useState([]);
     const [certOptions, setCertOptions] = useState([]);
     const [levelOptions, setLevelOptions] = useState([]);
@@ -35,7 +36,7 @@ export default function EmployeeEligibilityPage() {
     const [filterStatus, setFilterStatus] = useState([]);
     const [filterSource, setFilterSource] = useState([]);
 
-    // 🔹 Load data
+    // Load data
     async function load() {
         setLoading(true);
         try {
@@ -75,7 +76,7 @@ export default function EmployeeEligibilityPage() {
         }
     }
 
-    // 🔹 Load filter options
+    // Load filter options
     async function loadFilters() {
         try {
             const [jobs, certs, levels, subs] = await Promise.all([
@@ -95,14 +96,10 @@ export default function EmployeeEligibilityPage() {
         }
     }
 
-    // 🔹 Async search employees (limit 20)
+    // Async search employees
     const loadEmployees = async (inputValue) => {
         try {
-            const res = await searchEmployees({
-                search: inputValue,
-                page: 0,
-                size: 20,
-            });
+            const res = await searchEmployees({ search: inputValue, page: 0, size: 20 });
             return res.content.map((e) => ({
                 value: e.id,
                 label: `${e.nip} - ${e.name}`,
@@ -116,10 +113,10 @@ export default function EmployeeEligibilityPage() {
         load();
     }, [page, rowsPerPage, filterEmployee, filterJob, filterCert, filterLevel, filterSub, filterStatus, filterSource]);
 
-    // reset page ke 1 kalau filter berubah
     useEffect(() => {
         setPage(1);
     }, [filterEmployee, filterJob, filterCert, filterLevel, filterSub, filterStatus, filterSource]);
+
     useEffect(() => {
         loadFilters();
     }, []);
@@ -260,12 +257,31 @@ export default function EmployeeEligibilityPage() {
                                 <tr key={r.id}>
                                     <td>{startIdx + idx}</td>
                                     <td>{r.nip}</td>
-                                    <td>{r.employeeName}</td>
+
+                                    {/* 🔹 Nama Pegawai dengan Link ke Detail */}
+                                    <td>
+                                        <Link
+                                            to={`/employee/${r.employeeId}`}
+                                            className="hover:text-secondary underline"
+                                        >
+                                            {r.employeeName}
+                                        </Link>
+                                    </td>
+
                                     <td>{r.jobPositionTitle}</td>
                                     <td>{r.certificationCode}</td>
                                     <td>{r.certificationLevelLevel || "-"}</td>
                                     <td>{r.subFieldCode || "-"}</td>
-                                    <td>{r.joinDate ? new Date(r.joinDate).toLocaleDateString("id-ID") : "-"}</td>
+                                    <td>
+                                        {r.effectiveDate
+                                            ? new Date(r.effectiveDate).toLocaleDateString("id-ID", {
+                                                  day: "2-digit",
+                                                  month: "short",
+                                                  year: "numeric",
+                                              })
+                                            : "-"}
+                                    </td>
+
                                     <td>
                                         <span
                                             className={`badge badge-sm text-white whitespace-nowrap ${
@@ -281,7 +297,15 @@ export default function EmployeeEligibilityPage() {
                                             {r.status === "NOT_YET_CERTIFIED" ? "BELUM SERTIFIKASI" : r.status}
                                         </span>
                                     </td>
-                                    <td>{r.dueDate ? new Date(r.dueDate).toLocaleDateString("id-ID") : "-"}</td>
+                                    <td>
+                                        {r.dueDate
+                                            ? new Date(r.dueDate).toLocaleDateString("id-ID", {
+                                                  day: "2-digit",
+                                                  month: "short",
+                                                  year: "numeric",
+                                              })
+                                            : "-"}
+                                    </td>
                                     <td>
                                         <span
                                             className={`badge badge-sm text-white ${

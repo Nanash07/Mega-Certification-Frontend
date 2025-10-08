@@ -18,7 +18,7 @@ public class EmployeeRequest {
     private Long unitId;
     private Long jobPositionId;
 
-    private LocalDate joinDate;
+    private LocalDate effectiveDate;
     private String status;
     private String photoUrl;
 }

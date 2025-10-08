@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import Select from "react-select";
 import AsyncSelect from "react-select/async";
@@ -15,9 +16,10 @@ import UploadEmployeeCertificationModal from "../../components/employee-certific
 import ViewEmployeeCertificationModal from "../../components/employee-certifications/ViewEmployeeCertificationModal";
 
 export default function EmployeeCertificationPage() {
+    const navigate = useNavigate();
+
     const [rows, setRows] = useState([]);
     const [loading, setLoading] = useState(false);
-
     // Pagination
     const [page, setPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -143,11 +145,20 @@ export default function EmployeeCertificationPage() {
             {/* Toolbar */}
             <div className="mb-4 space-y-3">
                 <div className="grid grid-cols-1 lg:grid-cols-6 gap-3">
-                    <div className="col-span-4"></div>
+                    <div className="col-span-3"></div>
 
                     <div className="col-span-1">
                         <button className="btn btn-sm btn-secondary w-full" onClick={() => setShowCreateModal(true)}>
                             Tambah Sertifikat
+                        </button>
+                    </div>
+
+                    <div className="col-span-1">
+                        <button
+                            className="btn btn-sm btn-accent w-full"
+                            onClick={() => navigate("/employee/certification/histories")}
+                        >
+                            Histori
                         </button>
                     </div>
 

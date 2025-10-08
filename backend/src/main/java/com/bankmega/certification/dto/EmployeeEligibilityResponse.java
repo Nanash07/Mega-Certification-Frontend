@@ -14,7 +14,7 @@ public class EmployeeEligibilityResponse {
     private String nip;
     private String employeeName;
     private String jobPositionTitle;
-    private LocalDate joinDate;
+    private LocalDate effectiveDate;
 
     private Long certificationRuleId;
     private String certificationCode;
@@ -26,14 +26,14 @@ public class EmployeeEligibilityResponse {
     private String subFieldName;
     private String subFieldCode;
 
-    private String status;   // NOT_YET_CERTIFIED, ACTIVE, DUE, EXPIRED
+    private String status; // NOT_YET_CERTIFIED, ACTIVE, DUE, EXPIRED
     private LocalDate dueDate;
-    private String source;   
+    private String source;
 
     private Boolean isActive;
 
     private LocalDate wajibPunyaSertifikasiSampai; // joinDate + wajibSetelahMasuk
-    private Integer masaBerlakuBulan;              // validityMonths
+    private Integer masaBerlakuBulan; // validityMonths
     private String sisaWaktu;
 
     private Instant createdAt;

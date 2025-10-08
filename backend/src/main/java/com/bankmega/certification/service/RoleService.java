@@ -7,6 +7,7 @@ import com.bankmega.certification.exception.BadRequestException;
 import com.bankmega.certification.exception.ConflictException;
 import com.bankmega.certification.exception.NotFoundException;
 import com.bankmega.certification.repository.RoleRepository;
+import com.bankmega.certification.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,27 +23,30 @@ import java.util.List;
 public class RoleService {
 
     private final RoleRepository roleRepo;
+    private final UserRepository userRepo; // ✅ tambahin ini
 
-    // List semua role tanpa paging (dropdown dsb.)
+    // 🔹 List semua role (buat dropdown, dsb)
     public List<RoleResponse> getAll() {
         return roleRepo.findAll(Sort.by(Sort.Direction.ASC, "name"))
-                .stream().map(this::toResp).toList();
+                .stream()
+                .map(this::toResp)
+                .toList();
     }
 
-    // List role paging + search
+    // 🔹 Paging + search
     public Page<RoleResponse> getPage(String q, Pageable pageable) {
         if (q == null || q.isBlank()) {
             return roleRepo.findAll(pageable).map(this::toResp);
         }
         return roleRepo.findAll((root, cq, cb) -> {
-            String like = "%" + q.trim().toUpperCase() + "%";
-            return cb.like(cb.upper(root.get("name")), like);
+            String like = "%" + q.trim().toLowerCase() + "%";
+            return cb.like(cb.lower(root.get("name")), like);
         }, pageable).map(this::toResp);
     }
 
     public RoleResponse getById(Long id) {
         Role r = roleRepo.findById(id)
-                .orElseThrow(() -> new NotFoundException("Role with id " + id + " not found"));
+                .orElseThrow(() -> new NotFoundException("Role dengan id " + id + " tidak ditemukan"));
         return toResp(r);
     }
 
@@ -50,20 +54,23 @@ public class RoleService {
     public RoleResponse create(RoleRequest dto) {
         String name = normalize(dto.getName());
         if (roleRepo.existsByNameIgnoreCase(name)) {
-            throw new ConflictException("Role name already exists: " + name);
+            throw new ConflictException("Nama role sudah ada: " + name);
         }
-        Role saved = roleRepo.save(Role.builder().name(name).build());
+
+        Role saved = roleRepo.save(Role.builder()
+                .name(name)
+                .build());
         return toResp(saved);
     }
 
     @Transactional
     public RoleResponse update(Long id, RoleRequest dto) {
         Role r = roleRepo.findById(id)
-                .orElseThrow(() -> new NotFoundException("Role with id " + id + " not found"));
+                .orElseThrow(() -> new NotFoundException("Role dengan id " + id + " tidak ditemukan"));
 
         String name = normalize(dto.getName());
         if (!r.getName().equalsIgnoreCase(name) && roleRepo.existsByNameIgnoreCase(name)) {
-            throw new ConflictException("Role name already exists: " + name);
+            throw new ConflictException("Nama role sudah ada: " + name);
         }
 
         r.setName(name);
@@ -73,12 +80,13 @@ public class RoleService {
     @Transactional
     public void delete(Long id) {
         Role r = roleRepo.findById(id)
-                .orElseThrow(() -> new NotFoundException("Role with id " + id + " not found"));
+                .orElseThrow(() -> new NotFoundException("Role dengan id " + id + " tidak ditemukan"));
 
-        long used = roleRepo.countUsersByRoleId(id);
+        long used = userRepo.countByRole_Id(id); // ✅ ubah ke userRepo
         if (used > 0) {
-            throw new BadRequestException("Role is currently assigned to " + used + " user(s)");
+            throw new BadRequestException("Role sedang dipakai oleh " + used + " user");
         }
+
         roleRepo.delete(r);
     }
 

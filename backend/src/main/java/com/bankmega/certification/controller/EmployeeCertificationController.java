@@ -1,10 +1,7 @@
 package com.bankmega.certification.controller;
 
-import com.bankmega.certification.dto.CertificationProcessLogResponse;
 import com.bankmega.certification.dto.EmployeeCertificationRequest;
 import com.bankmega.certification.dto.EmployeeCertificationResponse;
-import com.bankmega.certification.dto.EmployeeCertificationHistoryResponse;
-import com.bankmega.certification.service.CertificationProcessLogService;
 import com.bankmega.certification.service.EmployeeCertificationService;
 import com.bankmega.certification.service.FileStorageService;
 import com.bankmega.certification.service.EmployeeCertificationHistoryService;
@@ -26,7 +23,6 @@ public class EmployeeCertificationController {
 
     private final EmployeeCertificationService service;
     private final FileStorageService fileStorageService;
-    private final CertificationProcessLogService logService;
     private final EmployeeCertificationHistoryService historyService;
 
     // ================== Paging + Filter ==================
@@ -45,8 +41,7 @@ public class EmployeeCertificationController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate validUntilEnd,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "createdAt,desc") String sort
-    ) {
+            @RequestParam(defaultValue = "createdAt,desc") String sort) {
         String[] sortParams = sort.split(",");
         Sort.Direction direction = sortParams.length > 1 && sortParams[1].equalsIgnoreCase("asc")
                 ? Sort.Direction.ASC
@@ -65,8 +60,7 @@ public class EmployeeCertificationController {
                 certDateEnd,
                 validUntilStart,
                 validUntilEnd,
-                pageable
-        );
+                pageable);
     }
 
     // ================== Detail ==================
@@ -85,8 +79,7 @@ public class EmployeeCertificationController {
     @PutMapping("/{id}")
     public EmployeeCertificationResponse update(
             @PathVariable Long id,
-            @RequestBody EmployeeCertificationRequest req
-    ) {
+            @RequestBody EmployeeCertificationRequest req) {
         return service.update(id, req);
     }
 
@@ -101,8 +94,7 @@ public class EmployeeCertificationController {
     @PostMapping("/{id}/upload")
     public EmployeeCertificationResponse uploadCertificate(
             @PathVariable Long id,
-            @RequestParam("file") MultipartFile file
-    ) {
+            @RequestParam("file") MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("File tidak boleh kosong");
         }
@@ -113,8 +105,7 @@ public class EmployeeCertificationController {
     @PostMapping("/{id}/reupload")
     public EmployeeCertificationResponse reuploadCertificate(
             @PathVariable Long id,
-            @RequestParam("file") MultipartFile file
-    ) {
+            @RequestParam("file") MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("File tidak boleh kosong");
         }
@@ -132,20 +123,7 @@ public class EmployeeCertificationController {
     @GetMapping("/{id}/file")
     public ResponseEntity<Resource> getCertificateFile(
             @PathVariable Long id,
-            @RequestParam(value = "download", defaultValue = "false") boolean download
-    ) {
+            @RequestParam(value = "download", defaultValue = "false") boolean download) {
         return fileStorageService.serveFile(id, download);
-    }
-
-    // ================== Logs ==================
-    @GetMapping("/{id}/logs")
-    public List<CertificationProcessLogResponse> getLogs(@PathVariable Long id) {
-        return logService.getLogs(id);
-    }
-
-    // ================== Histories ==================
-    @GetMapping("/{id}/histories")
-    public List<EmployeeCertificationHistoryResponse> getHistories(@PathVariable Long id) {
-        return historyService.getHistory(id);
     }
 }

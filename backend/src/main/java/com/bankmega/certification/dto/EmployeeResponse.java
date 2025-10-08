@@ -27,7 +27,7 @@ public class EmployeeResponse {
     private Long jobPositionId;
     private String jobName;
 
-    private LocalDate joinDate;
+    private LocalDate effectiveDate;
     private String status;
     private String photoUrl;
 

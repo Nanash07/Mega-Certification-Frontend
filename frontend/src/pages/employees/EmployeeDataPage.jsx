@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import Select from "react-select";
 import AsyncSelect from "react-select/async";
@@ -17,6 +18,7 @@ import EditEmployeeModal from "../../components/employees/EditEmployeeModal";
 import ImportEmployeeModal from "../../components/employees/ImportEmployeeModal";
 
 export default function EmployeePage() {
+    const navigate = useNavigate();
     const [rows, setRows] = useState([]);
     const [loading, setLoading] = useState(false);
 
@@ -159,18 +161,30 @@ export default function EmployeePage() {
         <div>
             {/* Toolbar */}
             <div className="mb-4 space-y-3">
-                <div className="grid grid-cols-1 lg:grid-cols-6 gap-3">
-                    <div className="col-span-3"></div>
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+                    <div className="hidden lg:block col-span-2"></div>
                     <div className="col-span-1">
                         <button className="btn btn-warning btn-sm w-full" onClick={handleDownloadTemplate}>
                             Download Template
                         </button>
                     </div>
+
                     <div className="col-span-1">
                         <button className="btn btn-success btn-sm w-full" onClick={() => setOpenImport(true)}>
                             Import Excel
                         </button>
                     </div>
+
+                    {/* ✅ Tombol baru: Lihat Histori */}
+                    <div className="col-span-1">
+                        <button
+                            className="btn btn-sm btn-accent w-full"
+                            onClick={() => navigate("/employee/data/histories")}
+                        >
+                            Histori
+                        </button>
+                    </div>
+
                     <div className="col-span-1">
                         <button className="btn btn-accent btn-soft border-accent btn-sm w-full" onClick={resetFilter}>
                             Clear Filter
@@ -264,7 +278,11 @@ export default function EmployeePage() {
                                 <tr key={e.id}>
                                     <td>{startIdx + idx}</td>
                                     <td>{e.nip}</td>
-                                    <td>{e.name}</td>
+                                    <td>
+                                        <Link to={`/employee/${e.id}`} className="hover:text-secondary underline">
+                                            {e.name}
+                                        </Link>
+                                    </td>
                                     <td>{e.email}</td>
                                     <td>{e.gender}</td>
                                     <td>{e.regionalName || "-"}</td>
@@ -286,7 +304,9 @@ export default function EmployeePage() {
                                             {e.status}
                                         </span>
                                     </td>
-                                    <td>{e.joinDate ? new Date(e.joinDate).toLocaleDateString("id-ID") : "-"}</td>
+                                    <td>
+                                        {e.effectiveDate ? new Date(e.effectiveDate).toLocaleDateString("id-ID") : "-"}
+                                    </td>
                                     <td className="flex gap-2">
                                         <button
                                             className="btn btn-xs btn-warning btn-soft border-warning"

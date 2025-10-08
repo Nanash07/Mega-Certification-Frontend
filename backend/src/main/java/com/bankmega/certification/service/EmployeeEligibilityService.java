@@ -14,6 +14,7 @@ import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +28,9 @@ public class EmployeeEligibilityService {
 
     // ===================== MAPPER =====================
     private EmployeeEligibilityResponse toResponse(EmployeeEligibility e) {
+        if (e == null)
+            return null;
+
         CertificationRule rule = e.getCertificationRule();
         Employee emp = e.getEmployee();
 
@@ -34,8 +38,8 @@ public class EmployeeEligibilityService {
         Integer masaBerlaku = null;
         String sisaWaktu = null;
 
-        if (emp != null && emp.getJoinDate() != null && rule != null && rule.getWajibSetelahMasuk() != null) {
-            wajibPunya = emp.getJoinDate().plusMonths(rule.getWajibSetelahMasuk());
+        if (emp != null && emp.getEffectiveDate() != null && rule != null && rule.getWajibSetelahMasuk() != null) {
+            wajibPunya = emp.getEffectiveDate().plusMonths(rule.getWajibSetelahMasuk());
         }
         if (rule != null) {
             masaBerlaku = rule.getValidityMonths();
@@ -50,32 +54,20 @@ public class EmployeeEligibilityService {
                 .employeeId(emp != null ? emp.getId() : null)
                 .employeeName(emp != null ? emp.getName() : null)
                 .nip(emp != null ? emp.getNip() : null)
-                .jobPositionTitle(emp != null && emp.getJobPosition() != null
-                        ? emp.getJobPosition().getName()
-                        : null
-                )
-                .joinDate(emp != null ? emp.getJoinDate() : null)
+                .jobPositionTitle(emp != null && emp.getJobPosition() != null ? emp.getJobPosition().getName() : null)
+                .effectiveDate(emp != null ? emp.getEffectiveDate() : null)
 
                 .certificationRuleId(rule != null ? rule.getId() : null)
                 .certificationCode(rule != null ? rule.getCertification().getCode() : null)
                 .certificationName(rule != null ? rule.getCertification().getName() : null)
-
                 .certificationLevelName(
-                        rule != null && rule.getCertificationLevel() != null
-                                ? rule.getCertificationLevel().getName()
-                                : null
-                )
+                        rule != null && rule.getCertificationLevel() != null ? rule.getCertificationLevel().getName()
+                                : null)
                 .certificationLevelLevel(
-                        rule != null && rule.getCertificationLevel() != null
-                                ? rule.getCertificationLevel().getLevel()
-                                : null
-                )
-                .subFieldName(
-                        rule != null && rule.getSubField() != null ? rule.getSubField().getName() : null
-                )
-                .subFieldCode(
-                        rule != null && rule.getSubField() != null ? rule.getSubField().getCode() : null
-                )
+                        rule != null && rule.getCertificationLevel() != null ? rule.getCertificationLevel().getLevel()
+                                : null)
+                .subFieldName(rule != null && rule.getSubField() != null ? rule.getSubField().getName() : null)
+                .subFieldCode(rule != null && rule.getSubField() != null ? rule.getSubField().getCode() : null)
 
                 .status(e.getStatus() != null ? e.getStatus().name() : null)
                 .dueDate(e.getDueDate())
@@ -102,8 +94,7 @@ public class EmployeeEligibilityService {
             List<String> statuses,
             List<String> sources,
             String search,
-            Pageable pageable
-    ) {
+            Pageable pageable) {
         Specification<EmployeeEligibility> spec = EmployeeEligibilitySpecification.notDeleted()
                 .and(EmployeeEligibilitySpecification.byEmployeeIds(employeeIds))
                 .and(EmployeeEligibilitySpecification.byJobIds(jobIds))
@@ -125,19 +116,20 @@ public class EmployeeEligibilityService {
                             Sort.Order.asc("employee.nip"),
                             Sort.Order.asc("certificationRule.certification.code"),
                             Sort.Order.asc("certificationRule.certificationLevel.level"),
-                            Sort.Order.asc("certificationRule.subField.code")
-                    )
-            );
+                            Sort.Order.asc("certificationRule.subField.code")));
         }
 
         Page<EmployeeEligibility> pageResult = eligibilityRepo.findAll(spec, pageable);
 
-        pageResult.getContent().forEach(ee -> {
-            ee.getEmployee().getName();
-            ee.getCertificationRule().getCertification().getCode();
-        });
-
         return pageResult.map(this::toResponse);
+    }
+
+    // ===================== GET ALL BY EMPLOYEE =====================
+    @Transactional(readOnly = true)
+    public List<EmployeeEligibilityResponse> getByEmployeeId(Long employeeId) {
+        List<EmployeeEligibility> eligList = eligibilityRepo.findByEmployee_IdAndDeletedAtIsNull(employeeId);
+
+        return eligList.stream().map(this::toResponse).toList();
     }
 
     // ===================== GET DETAIL =====================
@@ -148,44 +140,15 @@ public class EmployeeEligibilityService {
                 .orElseThrow(() -> new RuntimeException("Eligibility not found"));
     }
 
-    // ===================== CREATE MANUAL =====================
-    @Transactional
-    public EmployeeEligibilityResponse createFromManual(Long employeeId, CertificationRule rule) {
-        Employee employee = employeeRepo.findById(employeeId)
-                .orElseThrow(() -> new RuntimeException("Employee not found"));
-
-        EmployeeEligibility eligibility = eligibilityRepo
-                .findByEmployeeAndCertificationRuleAndSource(employee, rule, EmployeeEligibility.EligibilitySource.BY_NAME)
-                .orElseGet(EmployeeEligibility::new);
-
-        eligibility.setEmployee(employee);
-        eligibility.setCertificationRule(rule);
-        eligibility.setSource(EmployeeEligibility.EligibilitySource.BY_NAME);
-        eligibility.setIsActive(true);
-        eligibility.setDeletedAt(null);
-
-        if (eligibility.getStatus() == null) {
-            eligibility.setStatus(EmployeeEligibility.EligibilityStatus.NOT_YET_CERTIFIED);
-        }
-
-        eligibility.setValidityMonths(rule.getValidityMonths());
-        eligibility.setReminderMonths(rule.getReminderMonths());
-        eligibility.setWajibSetelahMasuk(rule.getWajibSetelahMasuk());
-
-        return toResponse(eligibilityRepo.save(eligibility));
-    }
-
     // ===================== TOGGLE ACTIVE =====================
     @Transactional
     public EmployeeEligibilityResponse toggleActive(Long id) {
         EmployeeEligibility eligibility = eligibilityRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Eligibility not found"));
+
         eligibility.setIsActive(!eligibility.getIsActive());
-        if (eligibility.getIsActive()) {
-            eligibility.setDeletedAt(null);
-        } else {
-            eligibility.setDeletedAt(Instant.now());
-        }
+        eligibility.setDeletedAt(eligibility.getIsActive() ? null : Instant.now());
+
         return toResponse(eligibilityRepo.save(eligibility));
     }
 
@@ -199,7 +162,7 @@ public class EmployeeEligibilityService {
         eligibilityRepo.save(eligibility);
     }
 
-    // ===================== REFRESH ENGINE (MASS) =====================
+    // ===================== REFRESH MASS =====================
     @Transactional
     public int refreshEligibility() {
         List<Employee> employees = employeeRepo.findAll();
@@ -208,30 +171,26 @@ public class EmployeeEligibilityService {
                 .filter(j -> j.getDeletedAt() == null)
                 .collect(Collectors.groupingBy(
                         j -> j.getJobPosition().getId(),
-                        Collectors.mapping(JobCertificationMapping::getCertificationRule, Collectors.toList())
-                ));
+                        Collectors.mapping(JobCertificationMapping::getCertificationRule, Collectors.toList())));
 
         Map<Long, List<CertificationRule>> exceptionRuleMap = exceptionRepo.findAll().stream()
                 .filter(e -> e.getDeletedAt() == null && Boolean.TRUE.equals(e.getIsActive()))
                 .collect(Collectors.groupingBy(
                         e -> e.getEmployee().getId(),
-                        Collectors.mapping(EmployeeEligibilityException::getCertificationRule, Collectors.toList())
-                ));
+                        Collectors.mapping(EmployeeEligibilityException::getCertificationRule, Collectors.toList())));
 
         List<EmployeeEligibility> allToSave = new ArrayList<>();
-
         for (Employee employee : employees) {
             allToSave.addAll(syncEligibilitiesForEmployee(employee, jobRuleMap, exceptionRuleMap));
         }
 
         eligibilityRepo.saveAll(allToSave);
-
         syncWithCertifications(employees);
 
         return allToSave.size();
     }
 
-    // ===================== REFRESH ENGINE (PER EMPLOYEE) =====================
+    // ===================== REFRESH PER EMPLOYEE =====================
     @Transactional
     public void refreshEligibilityForEmployee(Long employeeId) {
         Employee employee = employeeRepo.findById(employeeId)
@@ -241,15 +200,13 @@ public class EmployeeEligibilityService {
                 .filter(j -> j.getDeletedAt() == null)
                 .collect(Collectors.groupingBy(
                         j -> j.getJobPosition().getId(),
-                        Collectors.mapping(JobCertificationMapping::getCertificationRule, Collectors.toList())
-                ));
+                        Collectors.mapping(JobCertificationMapping::getCertificationRule, Collectors.toList())));
 
         Map<Long, List<CertificationRule>> exceptionRuleMap = exceptionRepo.findAll().stream()
                 .filter(e -> e.getDeletedAt() == null && Boolean.TRUE.equals(e.getIsActive()))
                 .collect(Collectors.groupingBy(
                         e -> e.getEmployee().getId(),
-                        Collectors.mapping(EmployeeEligibilityException::getCertificationRule, Collectors.toList())
-                ));
+                        Collectors.mapping(EmployeeEligibilityException::getCertificationRule, Collectors.toList())));
 
         List<EmployeeEligibility> toSave = syncEligibilitiesForEmployee(employee, jobRuleMap, exceptionRuleMap);
         eligibilityRepo.saveAll(toSave);
@@ -257,14 +214,12 @@ public class EmployeeEligibilityService {
         syncWithCertifications(List.of(employee));
     }
 
-    // ===================== PRIVATE HELPER =====================
+    // ===================== PRIVATE HELPERS =====================
     private List<EmployeeEligibility> syncEligibilitiesForEmployee(
             Employee employee,
             Map<Long, List<CertificationRule>> jobRuleMap,
-            Map<Long, List<CertificationRule>> exceptionRuleMap
-    ) {
+            Map<Long, List<CertificationRule>> exceptionRuleMap) {
         Long jobId = employee.getJobPosition() != null ? employee.getJobPosition().getId() : null;
-
         List<CertificationRule> mappingRules = jobId != null
                 ? jobRuleMap.getOrDefault(jobId, List.of())
                 : List.of();
@@ -274,60 +229,42 @@ public class EmployeeEligibilityService {
         List<EmployeeEligibility> existingElig = eligibilityRepo.findByEmployeeAndDeletedAtIsNull(employee);
         List<EmployeeEligibility> toSave = new ArrayList<>();
 
-        // 🔹 Kumpulan semua rule yang harus dimiliki (gabungan job + exception)
-        Set<Long> requiredRuleIds = new HashSet<>();
-        mappingRules.forEach(r -> requiredRuleIds.add(r.getId()));
-        manualRules.forEach(r -> requiredRuleIds.add(r.getId()));
-
-        // 🔹 Nonaktifkan eligibility yang tidak relevan lagi
+        // deactivate outdated
         for (EmployeeEligibility ee : existingElig) {
-            if (!requiredRuleIds.contains(ee.getCertificationRule().getId())) {
+            if (manualRules.stream().noneMatch(r -> r.getId().equals(ee.getCertificationRule().getId())) &&
+                    mappingRules.stream().noneMatch(r -> r.getId().equals(ee.getCertificationRule().getId()))) {
                 ee.setIsActive(false);
                 ee.setDeletedAt(Instant.now());
                 toSave.add(ee);
             }
         }
 
-        // 🔹 Sinkronisasi eligibility per rule (prioritas EXCEPTION > JOB)
-        for (Long ruleId : requiredRuleIds) {
-            CertificationRule rule = null;
-            // cari rule object dari mapping/exception
-            for (CertificationRule r : manualRules) {
-                if (r.getId().equals(ruleId)) {
-                    rule = r;
-                    break;
-                }
-            }
-            if (rule == null) {
-                for (CertificationRule r : mappingRules) {
-                    if (r.getId().equals(ruleId)) {
-                        rule = r;
-                        break;
-                    }
-                }
-            }
+        // add or reactivate valid
+        Set<Long> requiredIds = new HashSet<>();
+        mappingRules.forEach(r -> requiredIds.add(r.getId()));
+        manualRules.forEach(r -> requiredIds.add(r.getId()));
 
-            if (rule == null) continue; // safety net
+        for (Long ruleId : requiredIds) {
+            CertificationRule rule = Stream.concat(manualRules.stream(), mappingRules.stream())
+                    .filter(r -> r.getId().equals(ruleId))
+                    .findFirst()
+                    .orElse(null);
+            if (rule == null)
+                continue;
 
-            // cek existing eligibility untuk employee + rule
-            Optional<EmployeeEligibility> existingOpt = existingElig.stream()
+            EmployeeEligibility eligibility = existingElig.stream()
                     .filter(ee -> ee.getCertificationRule().getId().equals(ruleId))
-                    .findFirst();
-
-            EmployeeEligibility eligibility = existingOpt.orElseGet(EmployeeEligibility::new);
+                    .findFirst()
+                    .orElse(new EmployeeEligibility());
 
             eligibility.setEmployee(employee);
             eligibility.setCertificationRule(rule);
-            // 🚩 kalau ada exception untuk rule ini → BY_NAME, kalau nggak → BY_JOB
-            if (manualRules.stream().anyMatch(r -> r.getId().equals(ruleId))) {
-                eligibility.setSource(EmployeeEligibility.EligibilitySource.BY_NAME);
-            } else {
-                eligibility.setSource(EmployeeEligibility.EligibilitySource.BY_JOB);
-            }
-
-            if (eligibility.getStatus() == null) {
+            eligibility.setSource(
+                    manualRules.stream().anyMatch(r -> r.getId().equals(ruleId))
+                            ? EmployeeEligibility.EligibilitySource.BY_NAME
+                            : EmployeeEligibility.EligibilitySource.BY_JOB);
+            if (eligibility.getStatus() == null)
                 eligibility.setStatus(EmployeeEligibility.EligibilityStatus.NOT_YET_CERTIFIED);
-            }
 
             eligibility.setIsActive(true);
             eligibility.setDeletedAt(null);
@@ -341,23 +278,15 @@ public class EmployeeEligibilityService {
         return toSave;
     }
 
-
-
-    // ===================== SYNC WITH CERTIFICATIONS =====================
     private void syncWithCertifications(List<Employee> employees) {
-        List<Long> employeeIds = employees.stream()
-                .map(Employee::getId)
-                .toList();
-
+        List<Long> employeeIds = employees.stream().map(Employee::getId).toList();
         List<EmployeeCertification> certs = employeeCertificationRepo.findByEmployeeIdInAndDeletedAtIsNull(employeeIds);
 
-        // Ambil sertifikat terbaru per employee + rule
         Map<String, EmployeeCertification> latestCerts = certs.stream()
                 .collect(Collectors.toMap(
                         c -> c.getEmployee().getId() + "-" + c.getCertificationRule().getId(),
                         c -> c,
-                        (c1, c2) -> c1.getCertDate().isAfter(c2.getCertDate()) ? c1 : c2
-                ));
+                        (c1, c2) -> c1.getCertDate().isAfter(c2.getCertDate()) ? c1 : c2));
 
         List<EmployeeEligibility> allEligibilities = eligibilityRepo.findByDeletedAtIsNull();
         for (EmployeeEligibility ee : allEligibilities) {
@@ -365,8 +294,7 @@ public class EmployeeEligibilityService {
             EmployeeCertification cert = latestCerts.get(key);
 
             if (cert != null) {
-                ee.setDueDate(cert.getValidUntil()); // sync langsung dari cert
-
+                ee.setDueDate(cert.getValidUntil());
                 if (cert.getValidUntil() == null) {
                     ee.setStatus(EmployeeEligibility.EligibilityStatus.NOT_YET_CERTIFIED);
                 } else if (LocalDate.now().isAfter(cert.getValidUntil())) {

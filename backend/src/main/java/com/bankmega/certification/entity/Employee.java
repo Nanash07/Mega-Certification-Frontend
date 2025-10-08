@@ -55,8 +55,8 @@ public class Employee {
     @JoinColumn(name = "job_position_id")
     private JobPosition jobPosition;
 
-    @Column(name = "join_date")
-    private LocalDate joinDate;
+    @Column(name = "effective_date")
+    private LocalDate effectiveDate;
 
     @Column(name = "status", nullable = false)
     private String status; // ACTIVE / INACTIVE / MUTASI

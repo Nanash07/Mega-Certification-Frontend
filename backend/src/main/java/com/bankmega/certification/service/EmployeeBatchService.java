@@ -26,6 +26,7 @@ public class EmployeeBatchService {
     private final EmployeeRepository employeeRepo;
     private final EmployeeEligibilityRepository eligibilityRepo;
     private final EmployeeCertificationRepository certificationRepo;
+    private final EmployeeCertificationHistoryService historyService; // ✅ Tambahan baru
 
     // ================== MAPPER ==================
     private EmployeeBatchResponse toResponse(EmployeeBatch eb) {
@@ -57,13 +58,11 @@ public class EmployeeBatchService {
                 .certificationCode(
                         e.getCertificationRule() != null && e.getCertificationRule().getCertification() != null
                                 ? e.getCertificationRule().getCertification().getCode()
-                                : null
-                )
+                                : null)
                 .certificationName(
                         e.getCertificationRule() != null && e.getCertificationRule().getCertification() != null
                                 ? e.getCertificationRule().getCertification().getName()
-                                : null
-                )
+                                : null)
                 .status(e.getStatus() != null ? e.getStatus().name() : null)
                 .isActive(e.getIsActive())
                 .build();
@@ -84,20 +83,17 @@ public class EmployeeBatchService {
             Long batchId,
             String search,
             EmployeeBatch.Status status,
-            Pageable pageable
-    ) {
+            Pageable pageable) {
         Specification<EmployeeBatch> spec = EmployeeBatchSpecification.notDeleted()
                 .and(EmployeeBatchSpecification.byBatch(batchId))
                 .and(EmployeeBatchSpecification.byStatus(status))
                 .and(EmployeeBatchSpecification.bySearch(search));
 
-        // ✅ Default sort by employee.nip kalau FE gak kirim sort
         if (pageable.getSort().isUnsorted()) {
             pageable = PageRequest.of(
                     pageable.getPageNumber(),
                     pageable.getPageSize(),
-                    Sort.by(Sort.Order.asc("employee.nip"))
-            );
+                    Sort.by(Sort.Order.asc("employee.nip")));
         }
 
         return repo.findAll(spec, pageable).map(this::toResponse);
@@ -111,7 +107,6 @@ public class EmployeeBatchService {
         Employee emp = employeeRepo.findByIdAndDeletedAtIsNull(employeeId)
                 .orElseThrow(() -> new NotFoundException("Employee not found"));
 
-        // Quota check
         long currentCount = repo.countByBatch_IdAndDeletedAtIsNull(batchId);
         if (batch.getQuota() != null && currentCount >= batch.getQuota()) {
             throw new IllegalStateException("Quota batch sudah penuh");
@@ -122,7 +117,6 @@ public class EmployeeBatchService {
                     if (eb.getDeletedAt() == null) {
                         throw new IllegalStateException("Peserta sudah ada di batch ini");
                     }
-                    // restore record lama
                     eb.setDeletedAt(null);
                     eb.setStatus(EmployeeBatch.Status.REGISTERED);
                     eb.setRegistrationDate(LocalDate.now());
@@ -159,9 +153,8 @@ public class EmployeeBatchService {
                     .orElseThrow(() -> new NotFoundException("Employee not found"));
 
             boolean exists = repo.existsByBatch_IdAndEmployee_IdAndDeletedAtIsNull(batchId, empId);
-            if (exists) {
-                continue; // skip kalau sudah ada
-            }
+            if (exists)
+                continue;
 
             EmployeeBatch eb = EmployeeBatch.builder()
                     .batch(batch)
@@ -184,12 +177,10 @@ public class EmployeeBatchService {
             Long id,
             EmployeeBatch.Status status,
             Integer score,
-            String notes
-    ) {
+            String notes) {
         EmployeeBatch eb = repo.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new NotFoundException("EmployeeBatch not found"));
 
-        // Validasi transisi
         EmployeeBatch.Status current = eb.getStatus();
         if (status == EmployeeBatch.Status.ATTENDED && current != EmployeeBatch.Status.REGISTERED) {
             throw new IllegalStateException("Hanya peserta REGISTERED yang bisa jadi ATTENDED");
@@ -208,13 +199,15 @@ public class EmployeeBatchService {
             eb.setResultDate(LocalDate.now());
         }
 
-        if (score != null) eb.setScore(score);
-        if (notes != null) eb.setNotes(notes);
+        if (score != null)
+            eb.setScore(score);
+        if (notes != null)
+            eb.setNotes(notes);
         eb.setUpdatedAt(Instant.now());
 
         EmployeeBatch saved = repo.save(eb);
 
-        // Kalau PASSED → auto create/update certification
+        // ✅ Jika lulus, buat atau update sertifikasi + histori CREATED/UPDATED
         if (status == EmployeeBatch.Status.PASSED) {
             createOrUpdateCertification(saved);
         }
@@ -222,6 +215,7 @@ public class EmployeeBatchService {
         return toResponse(saved);
     }
 
+    // ================== CREATE / UPDATE CERTIFICATION ==================
     private void createOrUpdateCertification(EmployeeBatch eb) {
         Employee emp = eb.getEmployee();
         CertificationRule rule = eb.getBatch().getCertificationRule();
@@ -230,6 +224,8 @@ public class EmployeeBatchService {
         EmployeeCertification ec = certificationRepo
                 .findFirstByEmployeeIdAndCertificationRuleIdAndDeletedAtIsNull(emp.getId(), rule.getId())
                 .orElse(null);
+
+        boolean isNew = false;
 
         if (ec == null) {
             ec = EmployeeCertification.builder()
@@ -242,20 +238,18 @@ public class EmployeeBatchService {
                     .createdAt(Instant.now())
                     .updatedAt(Instant.now())
                     .build();
+            isNew = true;
         } else {
             ec.setCertDate(LocalDate.now());
             ec.setUpdatedAt(Instant.now());
-
-            if (ec.getCertNumber() == null || ec.getCertNumber().isBlank()) {
-                ec.setStatus(EmployeeCertification.Status.PENDING);
-            } else {
-                ec.setStatus(EmployeeCertification.Status.ACTIVE);
-            }
+            ec.setStatus(
+                    (ec.getCertNumber() == null || ec.getCertNumber().isBlank())
+                            ? EmployeeCertification.Status.PENDING
+                            : EmployeeCertification.Status.ACTIVE);
         }
 
         if (ec.getCertDate() != null) {
             ec.setValidFrom(ec.getCertDate());
-
             if (rule != null && rule.getValidityMonths() != null) {
                 ec.setValidUntil(ec.getCertDate().plusMonths(rule.getValidityMonths()));
             }
@@ -264,7 +258,14 @@ public class EmployeeBatchService {
             }
         }
 
-        certificationRepo.save(ec);
+        EmployeeCertification saved = certificationRepo.save(ec);
+
+        // ✅ Catat histori CREATED / UPDATED
+        if (isNew) {
+            historyService.snapshot(saved, EmployeeCertificationHistory.ActionType.CREATED);
+        } else {
+            historyService.snapshot(saved, EmployeeCertificationHistory.ActionType.UPDATED);
+        }
     }
 
     // ================== SOFT DELETE ==================
@@ -277,15 +278,15 @@ public class EmployeeBatchService {
         repo.save(eb);
     }
 
-    // ================== GET ELIGIBLE EMPLOYEES ==================
+    // ================== ELIGIBLE EMPLOYEES ==================
     @Transactional(readOnly = true)
     public List<EmployeeEligibilityResponse> getEligibleEmployeesForBatch(Long batchId) {
         Batch batch = batchRepo.findByIdAndDeletedAtIsNull(batchId)
                 .orElseThrow(() -> new NotFoundException("Batch not found"));
         Long certRuleId = batch.getCertificationRule().getId();
 
-        List<EmployeeEligibility> eligibles =
-                eligibilityRepo.findByCertificationRule_IdAndIsActiveTrueAndDeletedAtIsNull(certRuleId);
+        List<EmployeeEligibility> eligibles = eligibilityRepo
+                .findByCertificationRule_IdAndIsActiveTrueAndDeletedAtIsNull(certRuleId);
 
         List<Long> existingIds = repo.findByBatch_IdAndDeletedAtIsNull(batchId)
                 .stream()

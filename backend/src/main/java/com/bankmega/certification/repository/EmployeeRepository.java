@@ -18,13 +18,20 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSp
     interface NipOnly {
         String getNip();
     }
+
     List<NipOnly> findAllBy();
 
     // ==== Soft Delete Aware Queries ====
     List<Employee> findByDeletedAtIsNull();
+
     Optional<Employee> findByIdAndDeletedAtIsNull(Long id);
+
     Optional<Employee> findByNipAndDeletedAtIsNull(String nip);
+
     boolean existsByNipAndDeletedAtIsNull(String nip);
+
+    // ✅ Tambahin ini biar bisa dipake di import resign detection
+    List<Employee> findByNipInAndDeletedAtIsNull(Set<String> nips);
 
     // ==== Hard find (termasuk yg soft deleted) ====
     Optional<Employee> findByNip(String nip);
@@ -34,7 +41,10 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSp
 
     // ==== Constraints (dipakai sebelum delete master data) ====
     boolean existsByRegional(Regional regional);
+
     boolean existsByDivision(Division division);
+
     boolean existsByUnit(Unit unit);
+
     boolean existsByJobPosition(JobPosition jobPosition);
 }

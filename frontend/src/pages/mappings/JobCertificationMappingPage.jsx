@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import Select from "react-select";
 import Pagination from "../../components/common/Pagination";
@@ -16,6 +17,8 @@ import { downloadJobCertTemplate } from "../../services/jobCertificationImportSe
 import ImportJobCertificationMappingModal from "../../components/job-certification-mapping/ImportJobCertificationMappingModal";
 
 export default function JobCertificationMappingPage() {
+    const navigate = useNavigate();
+
     const [rows, setRows] = useState([]);
     const [loading, setLoading] = useState(false);
 
@@ -112,28 +115,35 @@ export default function JobCertificationMappingPage() {
         <div>
             {/* Toolbar */}
             <div className="mb-4 space-y-3">
-                {/* Row 1: Tombol */}
+                {/* 🔹 Row 1: Tombol Aksi */}
                 <div className="grid grid-cols-1 lg:grid-cols-6 gap-3">
                     <div className="col-span-3"></div>
+
                     <div className="col-span-1">
                         <button className="btn btn-warning btn-sm w-full" onClick={downloadJobCertTemplate}>
                             Download Template
                         </button>
                     </div>
+
                     <div className="col-span-1">
                         <button className="btn btn-success btn-sm w-full" onClick={() => setOpenImport(true)}>
                             Import Excel
                         </button>
                     </div>
+
+                    {/* 🔹 Tombol Histori */}
                     <div className="col-span-1">
-                        <button className="btn btn-accent btn-soft border-accent btn-sm w-full" onClick={resetFilter}>
-                            Clear Filter
+                        <button
+                            className="btn btn-accent btn-sm w-full"
+                            onClick={() => navigate("/mapping/job-certification/histories")}
+                        >
+                            Histori
                         </button>
                     </div>
                 </div>
 
-                {/* Row 2: Filters */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 text-xs">
+                {/* 🔹 Row 2: Filters + Clear Filter */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 text-xs items-end">
                     <Select
                         isMulti
                         options={jobOptions}
@@ -172,6 +182,9 @@ export default function JobCertificationMappingPage() {
                         onChange={setFilterStatus}
                         placeholder="Status"
                     />
+                    <button className="btn btn-accent btn-soft border-accent btn-sm w-full" onClick={resetFilter}>
+                        Clear Filter
+                    </button>
                 </div>
             </div>
 

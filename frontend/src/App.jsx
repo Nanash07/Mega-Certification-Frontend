@@ -6,44 +6,59 @@ import ForgotPassword from "./pages/auth/ForgotPassword";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import MainLayout from "./layouts/MainLayout";
 
+// Dashboard
 import Dashboard from "./pages/dashboard/Dashboard";
+
+// Profile
+import ProfilePage from "./pages/profile/ProfilePage";
+
+// ================= EMPLOYEE =================
 import EmployeeDataPage from "./pages/employees/EmployeeDataPage";
+import EmployeeDetailPage from "./pages/employees/EmployeeDetailPage";
 import EmployeeEligibilityPage from "./pages/employees/EmployeeEligibilityPage";
 import EmployeeExceptionPage from "./pages/employees/EmployeeExceptionPage";
 import EmployeeCertificationPage from "./pages/employees/EmployeeCertificationPage";
-import EmployeeDetailPage from "./pages/employees/EmployeeDetailPage"; // ⬅️ import baru
+import EmployeeCertificationHistoryPage from "./pages/employees/EmployeeCertificationHistoryPage";
+import EmployeeHistoryPage from "./pages/employees/EmployeeHistoryPage";
 
+// ================= ORGANIZATION =================
 import RegionalPage from "./pages/organizations/RegionalPage";
 import DivisionPage from "./pages/organizations/DivisionPage";
 import UnitPage from "./pages/organizations/UnitPage";
 import JobPositionPage from "./pages/organizations/JobPositionPage";
-import ProfilePage from "./pages/profile/ProfilePage";
-import JobCertificationMappingPage from "./pages/mappings/JobCertificationMappingPage";
 
+// ================= CERTIFICATION MASTER =================
 import CertificationPage from "./pages/certifications/CertificationPage";
 import CertificationLevelPage from "./pages/certifications/CertificationLevelPage";
 import SubFieldPage from "./pages/certifications/SubFieldPage";
 import CertificationRulePage from "./pages/certifications/CertificationRulePage";
+import CertificationRuleHistoryPage from "./pages/certifications/CertificationRuleHistoryPage";
 import InstitutionPage from "./pages/certifications/InstitutionPage";
 
+// ================= MAPPINGS =================
+import JobCertificationMappingPage from "./pages/mappings/JobCertificationMappingPage";
+import JobCertificationMappingHistoryPage from "./pages/mappings/JobCertificationMappingHistoryPage";
+import PicCertificationScopePage from "./pages/pic/PicCertificationScopePage";
+
+// ================= BATCH =================
 import BatchPage from "./pages/batch/BatchPage";
 import DetailBatchPage from "./pages/batch/DetailBatchPage";
 
-import PicCertificationScopePage from "./pages/pic/PicCertificationScopePage";
+// ================= USERS =================
 import UserPage from "./pages/users/UserPage";
 
 export default function App() {
     return (
         <BrowserRouter>
             <Routes>
-                {/* Redirect root ke dashboard */}
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
-
-                {/* ========== AUTH ========== */}
+                {/* ===== AUTH ===== */}
                 <Route path="/login" element={<Login />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
 
-                {/* ========== PROTECTED ========== */}
+                {/* ===== REDIRECT ROOT ===== */}
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+                {/* ===== DASHBOARD ===== */}
                 <Route
                     path="/dashboard"
                     element={
@@ -55,6 +70,7 @@ export default function App() {
                     }
                 />
 
+                {/* ===== PROFILE ===== */}
                 <Route
                     path="/profile"
                     element={
@@ -66,7 +82,7 @@ export default function App() {
                     }
                 />
 
-                {/* Employee */}
+                {/* ===== EMPLOYEE ===== */}
                 <Route
                     path="/employee/data"
                     element={
@@ -77,8 +93,6 @@ export default function App() {
                         </ProtectedRoute>
                     }
                 />
-
-                {/* 🔹 NEW: Detail Pegawai */}
                 <Route
                     path="/employee/:id"
                     element={
@@ -89,7 +103,6 @@ export default function App() {
                         </ProtectedRoute>
                     }
                 />
-
                 <Route
                     path="/employee/eligibility"
                     element={
@@ -100,7 +113,6 @@ export default function App() {
                         </ProtectedRoute>
                     }
                 />
-
                 <Route
                     path="/employee/exception"
                     element={
@@ -111,7 +123,6 @@ export default function App() {
                         </ProtectedRoute>
                     }
                 />
-
                 <Route
                     path="/employee/certification"
                     element={
@@ -122,8 +133,28 @@ export default function App() {
                         </ProtectedRoute>
                     }
                 />
+                <Route
+                    path="/employee/certification/histories"
+                    element={
+                        <ProtectedRoute roles={["SUPERADMIN", "PIC"]}>
+                            <MainLayout>
+                                <EmployeeCertificationHistoryPage />
+                            </MainLayout>
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/employee/data/histories"
+                    element={
+                        <ProtectedRoute roles={["SUPERADMIN"]}>
+                            <MainLayout>
+                                <EmployeeHistoryPage />
+                            </MainLayout>
+                        </ProtectedRoute>
+                    }
+                />
 
-                {/* Organization */}
+                {/* ===== ORGANIZATION ===== */}
                 <Route
                     path="/organization/regional"
                     element={
@@ -165,6 +196,7 @@ export default function App() {
                     }
                 />
 
+                {/* ===== MAPPING ===== */}
                 <Route
                     path="/mapping/job-certification"
                     element={
@@ -175,7 +207,16 @@ export default function App() {
                         </ProtectedRoute>
                     }
                 />
-
+                <Route
+                    path="/mapping/job-certification/histories"
+                    element={
+                        <ProtectedRoute roles={["SUPERADMIN"]}>
+                            <MainLayout>
+                                <JobCertificationMappingHistoryPage />
+                            </MainLayout>
+                        </ProtectedRoute>
+                    }
+                />
                 <Route
                     path="/mapping/pic-certification-scope"
                     element={
@@ -187,6 +228,7 @@ export default function App() {
                     }
                 />
 
+                {/* ===== BATCH ===== */}
                 <Route
                     path="/batch"
                     element={
@@ -197,7 +239,6 @@ export default function App() {
                         </ProtectedRoute>
                     }
                 />
-
                 <Route
                     path="/batch/:id"
                     element={
@@ -209,7 +250,7 @@ export default function App() {
                     }
                 />
 
-                {/* Sertifikasi */}
+                {/* ===== CERTIFICATION MASTER ===== */}
                 <Route
                     path="/sertifikasi/jenis"
                     element={
@@ -250,7 +291,16 @@ export default function App() {
                         </ProtectedRoute>
                     }
                 />
-
+                <Route
+                    path="/sertifikasi/aturan-sertifikat/histories"
+                    element={
+                        <ProtectedRoute roles={["SUPERADMIN"]}>
+                            <MainLayout>
+                                <CertificationRuleHistoryPage />
+                            </MainLayout>
+                        </ProtectedRoute>
+                    }
+                />
                 <Route
                     path="/sertifikasi/lembaga"
                     element={
@@ -262,7 +312,7 @@ export default function App() {
                     }
                 />
 
-                {/* Manajemen User */}
+                {/* ===== USERS ===== */}
                 <Route
                     path="/user"
                     element={
@@ -274,7 +324,7 @@ export default function App() {
                     }
                 />
 
-                {/* Fallback */}
+                {/* ===== FALLBACK ===== */}
                 <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
         </BrowserRouter>

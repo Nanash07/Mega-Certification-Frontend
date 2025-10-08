@@ -32,12 +32,18 @@ public class EmployeeCertification {
     @Column(name = "job_position_title", length = 200)
     private String jobPositionTitle;
 
-    // 🔹 Relasi ke CertificationRule
+    // 🔹 Relasi ke CertificationRule (FK tetap ada buat join)
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "certification_rule_id", nullable = false)
     private CertificationRule certificationRule;
 
-    // 🔹 Lembaga penyelenggara (optional)
+    // 🔹 Snapshot CertificationRule (supaya aturan lama tetap berlaku)
+    @Column(name = "rule_validity_months")
+    private Integer ruleValidityMonths;
+
+    @Column(name = "rule_reminder_months")
+    private Integer ruleReminderMonths;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "institution_id")
     private Institution institution;
@@ -57,7 +63,7 @@ public class EmployeeCertification {
     @Column(name = "reminder_date")
     private LocalDate reminderDate;
 
-    @Column(name = "file_url", length = 500) 
+    @Column(name = "file_url", length = 500)
     private String fileUrl;
 
     @Column(name = "file_name", length = 255)

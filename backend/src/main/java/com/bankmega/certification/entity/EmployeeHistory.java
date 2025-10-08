@@ -24,6 +24,10 @@ public class EmployeeHistory {
     @JoinColumn(name = "employee_id", nullable = false)
     private Employee employee;
 
+    // 🔹 Snapshot data pegawai
+    private String employeeNip;    // simpan NIP langsung
+    private String employeeName;   // simpan nama langsung
+
     // FK posisi lama & baru
     @ManyToOne
     @JoinColumn(name = "old_job_position_id")
@@ -46,9 +50,19 @@ public class EmployeeHistory {
     private String newRegionalName;
 
     private LocalDate effectiveDate;   // tanggal SK efektif
-    private String actionType;         // CREATED / MUTASI / UPDATED / TERMINATED
-    private String notes;
 
-    private String actionBy;           // siapa yg trigger (System Import / Admin)
-    private Instant actionAt;          // kapan dibuat
+    // 🔹 Enum actionType disimpan sebagai String
+    @Enumerated(EnumType.STRING)
+    private EmployeeActionType actionType;
+
+    private Instant actionAt;          
+
+    // 🔹 Inner Enum
+    public enum EmployeeActionType {
+        CREATED,
+        UPDATED,
+        MUTASI,
+        RESIGN,
+        TERMINATED
+    }
 }

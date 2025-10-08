@@ -1,5 +1,6 @@
 package com.bankmega.certification.repository;
 
+import com.bankmega.certification.entity.Employee;
 import com.bankmega.certification.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -24,6 +25,12 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     Optional<User> findByEmailAndDeletedAtIsNull(String email);
 
     Optional<User> findByUsername(String username);
+
     Optional<User> findByEmail(String email);
+
     List<User> findByRole_NameIgnoreCase(String roleName);
+
+    long countByRole_Id(Long roleId);
+
+    Optional<User> findByEmployee(Employee employee);
 }

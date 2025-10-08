@@ -26,12 +26,10 @@ public class CertificationRuleController {
             @RequestParam(required = false) List<Long> levelIds,
             @RequestParam(required = false) List<Long> subIds,
             @RequestParam(defaultValue = "all") String status,
-            @RequestParam(required = false) String search
-    ) {
+            @RequestParam(required = false) String search) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("updatedAt").descending());
         return ResponseEntity.ok(
-                service.getPagedFiltered(certIds, levelIds, subIds, status, search, pageable)
-        );
+                service.getPagedFiltered(certIds, levelIds, subIds, status, search, pageable));
     }
 
     // 🔹 All active rules (buat dropdown)
@@ -56,8 +54,7 @@ public class CertificationRuleController {
     @PutMapping("/{id}")
     public ResponseEntity<CertificationRuleResponse> update(
             @PathVariable Long id,
-            @RequestBody CertificationRuleRequest req
-    ) {
+            @RequestBody CertificationRuleRequest req) {
         return ResponseEntity.ok(service.update(id, req));
     }
 

@@ -3,14 +3,16 @@ import api from "./api";
 const EMPLOYEE_BASE = "/employees";
 const IMPORT_BASE = "/employees/import";
 
-// ================== EMPLOYEE CRUD ==================
+// =============================================================
+// 🧩 EMPLOYEE CRUD
+// =============================================================
 
-// 🔹 Ambil data pegawai dengan paging + filter + sorting (buat tabel)
-export async function fetchEmployees(params) {
+// 🔹 Ambil data pegawai (paging + filter + sorting)
+export async function fetchEmployees(params = {}) {
     try {
         const query = { ...params };
 
-        // 👉 Convert sortField & sortDirection jadi format Spring: sort=field,direction
+        // 👉 Convert sortField & sortDirection ke format Spring: sort=field,direction
         if (params?.sortField) {
             query.sort = `${params.sortField},${params.sortDirection || "asc"}`;
             delete query.sortField;
@@ -20,83 +22,84 @@ export async function fetchEmployees(params) {
         const { data } = await api.get(`${EMPLOYEE_BASE}/paged`, { params: query });
         return data || { content: [], totalPages: 0, totalElements: 0 };
     } catch (err) {
-        console.error("❌ fetchEmployees error:", err);
+        console.error("fetchEmployees error:", err);
         return { content: [], totalPages: 0, totalElements: 0 };
     }
 }
 
-// 🔹 Ambil semua pegawai (non-paging, buat dropdown kecil)
-// ⚠️ Jangan dipakai kalau datanya ribuan (lemot)
+// 🔹 Ambil semua pegawai (non-paging) — hati-hati kalau datanya ribuan
 export async function fetchEmployeesAll() {
     try {
         const { data } = await api.get(`${EMPLOYEE_BASE}/all`);
         return Array.isArray(data) ? data : [];
     } catch (err) {
-        console.error("❌ fetchEmployeesAll error:", err);
+        console.error("fetchEmployeesAll error:", err);
         return [];
     }
 }
 
-// 🔹 Search employees (paged, untuk async dropdown autocomplete)
-export async function searchEmployees({ search, page = 0, size = 20 }) {
+// 🔹 Search pegawai (paged)
+export async function searchEmployees({ search = "", page = 0, size = 20 }) {
     try {
         const { data } = await api.get(`${EMPLOYEE_BASE}/paged`, {
             params: { search, page, size },
         });
         return data || { content: [], totalPages: 0, totalElements: 0 };
     } catch (err) {
-        console.error("❌ searchEmployees error:", err);
+        console.error("searchEmployees error:", err);
         return { content: [], totalPages: 0, totalElements: 0 };
     }
 }
 
-// 🔹 Ambil detail pegawai (profil + sertifikasi)
+// 🔹 Ambil detail pegawai
 export async function getEmployeeDetail(id) {
     try {
         const { data } = await api.get(`${EMPLOYEE_BASE}/${id}`);
         return data;
     } catch (err) {
-        console.error("❌ getEmployeeDetail error:", err);
+        console.error("getEmployeeDetail error:", err);
         throw err;
     }
 }
 
-// 🔹 Delete pegawai (soft delete)
+// 🔹 Hapus pegawai (soft delete)
 export async function deleteEmployee(id) {
     try {
         await api.delete(`${EMPLOYEE_BASE}/${id}`);
         return true;
     } catch (err) {
-        console.error("❌ deleteEmployee error:", err);
+        console.error("deleteEmployee error:", err);
         throw err;
     }
 }
 
-// 🔹 Create pegawai
+// 🔹 Tambah pegawai baru
 export async function createEmployee(payload) {
     try {
         const { data } = await api.post(EMPLOYEE_BASE, payload);
         return data;
     } catch (err) {
-        console.error("❌ createEmployee error:", err);
+        console.error("createEmployee error:", err);
         throw err;
     }
 }
 
-// 🔹 Update pegawai
+// 🔹 Update data pegawai
 export async function updateEmployee(id, payload) {
     try {
         const { data } = await api.put(`${EMPLOYEE_BASE}/${id}`, payload);
         return data;
     } catch (err) {
-        console.error("❌ updateEmployee error:", err);
+        console.error("updateEmployee error:", err);
         throw err;
     }
 }
 
-// ================== IMPORT EMPLOYEES ==================
+// =============================================================
+// 📦 EMPLOYEE IMPORT (Excel Upload)
+// =============================================================
 
-// 🔹 Download template Excel
+// 🔹 Download template Excel pegawai
 export async function downloadEmployeeTemplate() {
     try {
         const res = await api.get(`${IMPORT_BASE}/template`, {
@@ -104,12 +107,12 @@ export async function downloadEmployeeTemplate() {
         });
         return res.data;
     } catch (err) {
-        console.error("❌ downloadEmployeeTemplate error:", err);
+        console.error("downloadEmployeeTemplate error:", err);
         throw err;
     }
 }
 
-// 🔹 Dry run import pegawai
+// 🔹 Dry run import pegawai (cek dulu tanpa commit DB)
 export async function importEmployeesDryRun(formData) {
     try {
         const { data } = await api.post(`${IMPORT_BASE}/dry-run`, formData, {
@@ -117,12 +120,12 @@ export async function importEmployeesDryRun(formData) {
         });
         return data;
     } catch (err) {
-        console.error("❌ importEmployeesDryRun error:", err);
+        console.error("importEmployeesDryRun error:", err);
         throw err;
     }
 }
 
-// 🔹 Confirm import pegawai
+// 🔹 Confirm import pegawai (commit ke DB)
 export async function importEmployeesConfirm(formData) {
     try {
         const { data } = await api.post(`${IMPORT_BASE}/confirm`, formData, {
@@ -130,71 +133,77 @@ export async function importEmployeesConfirm(formData) {
         });
         return data;
     } catch (err) {
-        console.error("❌ importEmployeesConfirm error:", err);
+        console.error("importEmployeesConfirm error:", err);
         throw err;
     }
 }
 
-// 🔹 Ambil semua logs import
+// 🔹 Ambil semua logs import (admin)
 export async function fetchEmployeeImportLogs() {
     try {
         const { data } = await api.get(`${IMPORT_BASE}/logs`);
         return Array.isArray(data) ? data : [];
     } catch (err) {
-        console.error("❌ fetchEmployeeImportLogs error:", err);
+        console.error("fetchEmployeeImportLogs error:", err);
         return [];
     }
 }
 
-// 🔹 Ambil logs import by user
+// 🔹 Ambil logs import berdasarkan user ID
 export async function fetchEmployeeImportLogsByUser(userId) {
     try {
         const { data } = await api.get(`${IMPORT_BASE}/logs/${userId}`);
         return Array.isArray(data) ? data : [];
     } catch (err) {
-        console.error("❌ fetchEmployeeImportLogsByUser error:", err);
+        console.error("fetchEmployeeImportLogsByUser error:", err);
         return [];
     }
 }
 
-// ================== MASTER DATA ==================
+// =============================================================
+// 🗂️ MASTER DATA (Dropdown Support)
+// =============================================================
 
+// 🔹 Ambil semua regional
 export async function fetchRegionals() {
     try {
         const { data } = await api.get("/regionals/all");
         return Array.isArray(data) ? data : [];
     } catch (err) {
-        console.error("❌ fetchRegionals error:", err);
+        console.error("fetchRegionals error:", err);
         return [];
     }
 }
 
+// 🔹 Ambil semua division
 export async function fetchDivisions() {
     try {
         const { data } = await api.get("/divisions/all");
         return Array.isArray(data) ? data : [];
     } catch (err) {
-        console.error("❌ fetchDivisions error:", err);
+        console.error("fetchDivisions error:", err);
         return [];
     }
 }
 
+// 🔹 Ambil semua unit
 export async function fetchUnits() {
     try {
         const { data } = await api.get("/units/all");
         return Array.isArray(data) ? data : [];
     } catch (err) {
-        console.error("❌ fetchUnits error:", err);
+        console.error("fetchUnits error:", err);
         return [];
     }
 }
 
+// 🔹 Ambil semua job position
 export async function fetchJobPositions() {
     try {
         const { data } = await api.get("/job-positions/all");
         return Array.isArray(data) ? data : [];
     } catch (err) {
-        console.error("❌ fetchJobPositions error:", err);
+        console.error("fetchJobPositions error:", err);
         return [];
     }
 }

@@ -1,7 +1,7 @@
 package com.bankmega.certification.controller;
 
-import com.bankmega.certification.dto.EmployeeImportResponse;
 import com.bankmega.certification.dto.EmployeeImportLogResponse;
+import com.bankmega.certification.dto.EmployeeImportResponse;
 import com.bankmega.certification.entity.User;
 import com.bankmega.certification.service.EmployeeImportService;
 import lombok.RequiredArgsConstructor;
@@ -25,12 +25,12 @@ public class EmployeeImportController {
             @RequestParam("file") MultipartFile file,
             Principal principal) throws Exception {
 
-        // TODO: Ambil user beneran dari principal / security context
         User user = new User();
         user.setId(1L);
         user.setUsername(principal != null ? principal.getName() : "system");
 
-        return ResponseEntity.ok(importService.dryRun(file, user));
+        EmployeeImportResponse response = importService.dryRun(file, user);
+        return ResponseEntity.ok(response);
     }
 
     // ✅ Confirm Import (commit ke DB + simpan log)
@@ -43,7 +43,8 @@ public class EmployeeImportController {
         user.setId(1L);
         user.setUsername(principal != null ? principal.getName() : "system");
 
-        return ResponseEntity.ok(importService.confirm(file, user));
+        EmployeeImportResponse response = importService.confirm(file, user);
+        return ResponseEntity.ok(response);
     }
 
     // ✅ Download Template Excel
@@ -54,11 +55,11 @@ public class EmployeeImportController {
 
     // ✅ Ambil semua log import
     @GetMapping("/logs")
-    public ResponseEntity<List<EmployeeImportLogResponse>> getLogs() {
+    public ResponseEntity<List<EmployeeImportLogResponse>> getAllLogs() {
         return ResponseEntity.ok(importService.getAllLogs());
     }
 
-    // ✅ Ambil log per user
+    // ✅ Ambil log import per user
     @GetMapping("/logs/{userId}")
     public ResponseEntity<List<EmployeeImportLogResponse>> getLogsByUser(@PathVariable Long userId) {
         return ResponseEntity.ok(importService.getLogsByUser(userId));

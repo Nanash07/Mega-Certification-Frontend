@@ -15,6 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -25,7 +26,6 @@ public class EmployeeCertificationService {
     private final CertificationRuleRepository ruleRepo;
     private final InstitutionRepository institutionRepo;
     private final FileStorageService fileStorageService;
-    private final CertificationProcessLogService logService;
     private final EmployeeCertificationHistoryService historyService;
 
     // ================== Mapper ==================
@@ -35,7 +35,7 @@ public class EmployeeCertificationService {
                 .employeeId(ec.getEmployee().getId())
                 .nip(ec.getEmployee().getNip())
                 .employeeName(ec.getEmployee().getName())
-                .jobPositionTitle(ec.getJobPositionTitle()) // ✅ pakai snapshot
+                .jobPositionTitle(ec.getJobPositionTitle())
                 .certificationRuleId(ec.getCertificationRule().getId())
                 .certificationName(ec.getCertificationRule().getCertification().getName())
                 .certificationCode(ec.getCertificationRule().getCertification().getCode())
@@ -74,12 +74,11 @@ public class EmployeeCertificationService {
         if (ec.getCertDate() != null) {
             ec.setValidFrom(ec.getCertDate());
 
-            CertificationRule rule = ec.getCertificationRule();
-            if (rule != null && rule.getValidityMonths() != null) {
-                ec.setValidUntil(ec.getCertDate().plusMonths(rule.getValidityMonths()));
+            if (ec.getRuleValidityMonths() != null) {
+                ec.setValidUntil(ec.getCertDate().plusMonths(ec.getRuleValidityMonths()));
             }
-            if (rule != null && rule.getReminderMonths() != null && ec.getValidUntil() != null) {
-                ec.setReminderDate(ec.getValidUntil().minusMonths(rule.getReminderMonths()));
+            if (ec.getRuleReminderMonths() != null && ec.getValidUntil() != null) {
+                ec.setReminderDate(ec.getValidUntil().minusMonths(ec.getRuleReminderMonths()));
             }
         }
     }
@@ -102,6 +101,18 @@ public class EmployeeCertificationService {
         } else {
             ec.setStatus(EmployeeCertification.Status.ACTIVE);
         }
+    }
+
+    private boolean hasChanged(EmployeeCertification ec, EmployeeCertificationRequest req) {
+        return !Objects.equals(ec.getCertNumber(), req.getCertNumber()) ||
+                !Objects.equals(ec.getCertDate(), req.getCertDate()) ||
+                !Objects.equals(ec.getProcessType(), req.getProcessType()) ||
+                (req.getInstitutionId() != null &&
+                        (ec.getInstitution() == null
+                                || !Objects.equals(ec.getInstitution().getId(), req.getInstitutionId())))
+                ||
+                (req.getCertificationRuleId() != null &&
+                        !Objects.equals(ec.getCertificationRule().getId(), req.getCertificationRuleId()));
     }
 
     // ================== Create ==================
@@ -129,9 +140,11 @@ public class EmployeeCertificationService {
                 .certNumber(req.getCertNumber())
                 .certDate(req.getCertDate())
                 .processType(req.getProcessType())
-                .jobPositionTitle(employee.getJobPosition() != null 
-                        ? employee.getJobPosition().getName() 
-                        : null) // ✅ snapshot nama jabatan
+                .jobPositionTitle(employee.getJobPosition() != null
+                        ? employee.getJobPosition().getName()
+                        : null)
+                .ruleValidityMonths(rule.getValidityMonths()) // 🔹 snapshot rule setting
+                .ruleReminderMonths(rule.getReminderMonths())
                 .createdAt(Instant.now())
                 .updatedAt(Instant.now())
                 .build();
@@ -139,8 +152,10 @@ public class EmployeeCertificationService {
         updateValidity(ec);
         updateStatus(ec);
 
+        // ✅ Simpan ke DB dulu
         EmployeeCertification saved = repo.save(ec);
-        logService.log(saved, CertificationProcessLog.ProcessType.REGISTERED, "Certification created");
+
+        // ✅ Tambahkan histori CREATED (⬅️ ini barunya)
         historyService.snapshot(saved, EmployeeCertificationHistory.ActionType.CREATED);
 
         return toResponse(saved);
@@ -152,10 +167,16 @@ public class EmployeeCertificationService {
         EmployeeCertification ec = repo.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new RuntimeException("Certification not found"));
 
+        if (!hasChanged(ec, req)) {
+            return toResponse(ec); // ⛔ Skip kalau tidak ada perubahan
+        }
+
         if (req.getCertificationRuleId() != null) {
             CertificationRule rule = ruleRepo.findById(req.getCertificationRuleId())
                     .orElseThrow(() -> new RuntimeException("Certification Rule not found"));
             ec.setCertificationRule(rule);
+            ec.setRuleValidityMonths(rule.getValidityMonths()); // 🔹 update snapshot
+            ec.setRuleReminderMonths(rule.getReminderMonths());
         }
 
         if (req.getInstitutionId() != null) {
@@ -168,13 +189,10 @@ public class EmployeeCertificationService {
         ec.setProcessType(req.getProcessType());
         ec.setUpdatedAt(Instant.now());
 
-        // ❌ Jangan update jobPositionTitle, biarin tetap historical snapshot
-
         updateValidity(ec);
         updateStatus(ec);
 
         EmployeeCertification saved = repo.save(ec);
-        logService.log(saved, CertificationProcessLog.ProcessType.PASSED, "Certification metadata updated");
         historyService.snapshot(saved, EmployeeCertificationHistory.ActionType.UPDATED);
 
         return toResponse(saved);
@@ -191,8 +209,37 @@ public class EmployeeCertificationService {
         ec.setUpdatedAt(Instant.now());
 
         EmployeeCertification saved = repo.save(ec);
-        logService.log(saved, CertificationProcessLog.ProcessType.FAILED, "Certification soft deleted");
         historyService.snapshot(saved, EmployeeCertificationHistory.ActionType.DELETED);
+    }
+
+    // ================== Handle File Update ==================
+    private EmployeeCertification handleFileUpdate(EmployeeCertification ec,
+            MultipartFile file,
+            boolean isReupload,
+            boolean isDelete,
+            EmployeeCertificationHistory.ActionType actionType) {
+        if (isDelete) {
+            fileStorageService.deleteCertificate(ec.getId());
+            ec.setFileUrl(null);
+            ec.setFileName(null);
+            ec.setFileType(null);
+        } else {
+            if (isReupload) {
+                fileStorageService.deleteCertificate(ec.getId());
+            }
+            String fileUrl = fileStorageService.save(ec.getId(), file);
+            ec.setFileUrl(fileUrl);
+            ec.setFileName(file.getOriginalFilename());
+            ec.setFileType(file.getContentType());
+        }
+
+        ec.setUpdatedAt(Instant.now());
+        updateStatus(ec);
+
+        EmployeeCertification saved = repo.save(ec);
+        historyService.snapshot(saved, actionType);
+
+        return saved;
     }
 
     // ================== Upload Certificate ==================
@@ -201,21 +248,8 @@ public class EmployeeCertificationService {
         EmployeeCertification ec = repo.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new RuntimeException("Certification not found"));
 
-        String fileUrl = fileStorageService.save(id, file);
-
-        ec.setFileUrl(fileUrl);
-        ec.setFileName(file.getOriginalFilename());
-        ec.setFileType(file.getContentType());
-        ec.setUpdatedAt(Instant.now());
-
-        updateStatus(ec);
-
-        EmployeeCertification saved = repo.save(ec);
-        logService.log(saved, CertificationProcessLog.ProcessType.UPLOAD_CERTIFICATE,
-                "File uploaded: " + file.getOriginalFilename());
-        historyService.snapshot(saved, EmployeeCertificationHistory.ActionType.UPLOAD_CERTIFICATE);
-
-        return toResponse(saved);
+        return toResponse(handleFileUpdate(ec, file, false, false,
+                EmployeeCertificationHistory.ActionType.UPLOAD_CERTIFICATE));
     }
 
     // ================== Reupload Certificate ==================
@@ -224,23 +258,8 @@ public class EmployeeCertificationService {
         EmployeeCertification ec = repo.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new RuntimeException("Certification not found"));
 
-        fileStorageService.deleteCertificate(id);
-
-        String fileUrl = fileStorageService.save(id, file);
-
-        ec.setFileUrl(fileUrl);
-        ec.setFileName(file.getOriginalFilename());
-        ec.setFileType(file.getContentType());
-        ec.setUpdatedAt(Instant.now());
-
-        updateStatus(ec);
-
-        EmployeeCertification saved = repo.save(ec);
-        logService.log(saved, CertificationProcessLog.ProcessType.REUPLOAD_CERTIFICATE,
-                "File reuploaded: " + file.getOriginalFilename());
-        historyService.snapshot(saved, EmployeeCertificationHistory.ActionType.REUPLOAD_CERTIFICATE);
-
-        return toResponse(saved);
+        return toResponse(handleFileUpdate(ec, file, true, false,
+                EmployeeCertificationHistory.ActionType.REUPLOAD_CERTIFICATE));
     }
 
     // ================== Delete Certificate ==================
@@ -249,19 +268,8 @@ public class EmployeeCertificationService {
         EmployeeCertification ec = repo.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new RuntimeException("Certification not found"));
 
-        fileStorageService.deleteCertificate(id);
-
-        ec.setFileUrl(null);
-        ec.setFileName(null);
-        ec.setFileType(null);
-        ec.setUpdatedAt(Instant.now());
-
-        updateStatus(ec);
-
-        EmployeeCertification saved = repo.save(ec);
-        logService.log(saved, CertificationProcessLog.ProcessType.DELETE_CERTIFICATE,
-                "Certificate file deleted");
-        historyService.snapshot(saved, EmployeeCertificationHistory.ActionType.DELETE_CERTIFICATE);
+        handleFileUpdate(ec, null, false, true,
+                EmployeeCertificationHistory.ActionType.DELETE_CERTIFICATE);
     }
 
     // ================== Detail ==================
@@ -286,8 +294,7 @@ public class EmployeeCertificationService {
             LocalDate certDateEnd,
             LocalDate validUntilStart,
             LocalDate validUntilEnd,
-            Pageable pageable
-    ) {
+            Pageable pageable) {
         Specification<EmployeeCertification> spec = EmployeeCertificationSpecification.notDeleted()
                 .and(EmployeeCertificationSpecification.byEmployeeIds(employeeIds))
                 .and(EmployeeCertificationSpecification.byCertCodes(certCodes))
