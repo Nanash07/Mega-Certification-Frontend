@@ -83,7 +83,7 @@ public class SecurityConfig {
         c.setAllowedOrigins(List.of(
                 "http://localhost:5173",
                 "https://mega-certification-project.vercel.app",
-                "https://843a18d52ad.ngrok-free.app"));
+                "https://843a182d52ad.ngrok-free.app"));
         c.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         c.addAllowedHeader("*");
         c.setExposedHeaders(List.of("Location"));
